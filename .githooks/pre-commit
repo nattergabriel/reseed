@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -e
+
+# Ensure common Go install paths are available
+export PATH="/usr/local/go/bin:/opt/homebrew/bin:$HOME/go/bin:$PATH"
+
+echo "Running pre-commit checks..."
+
+echo "  go build..."
+go build ./...
+
+echo "  go vet..."
+go vet ./...
+
+if command -v golangci-lint &> /dev/null; then
+  echo "  golangci-lint..."
+  golangci-lint run
+else
+  echo "  golangci-lint not found, skipping (install: https://golangci-lint.run/welcome/install)"
+fi
+
+echo "All checks passed."

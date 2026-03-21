@@ -53,7 +53,7 @@ func (c *Client) ResolveVersion(owner, repo, version string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetching tags for %s/%s: %w", owner, repo, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("fetching tags for %s/%s: HTTP %d", owner, repo, resp.StatusCode)
@@ -103,7 +103,7 @@ func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("downloading %s/%s: %w", ref.Owner, ref.Repo, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("downloading %s/%s: HTTP %d", ref.Owner, ref.Repo, resp.StatusCode)
@@ -121,7 +121,7 @@ func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("decompressing: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	tr := tar.NewReader(gz)
 
@@ -200,11 +200,12 @@ func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, err
 			}
 			destPath := filepath.Join(destDir, skillName, relPath)
 
-			if e.typeflag == tar.TypeDir {
+			switch e.typeflag {
+			case tar.TypeDir:
 				if err := os.MkdirAll(destPath, 0o755); err != nil {
 					return nil, err
 				}
-			} else if e.typeflag == tar.TypeReg {
+			case tar.TypeReg:
 				if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 					return nil, err
 				}
