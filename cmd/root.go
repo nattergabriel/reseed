@@ -20,8 +20,19 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
+const (
+	groupLibrary = "library"
+	groupProject = "project"
+)
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&project.SkillsDirOverride, "dir", "", "override the skills directory (default .agents/skills)")
+
+	rootCmd.AddGroup(
+		&cobra.Group{ID: groupLibrary, Title: "Library:"},
+		&cobra.Group{ID: groupProject, Title: "Project:"},
+	)
+
 	rootCmd.AddCommand(versionCmd)
 }
 

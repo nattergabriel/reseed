@@ -14,8 +14,9 @@ func init() {
 }
 
 var updateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Fetch latest versions of external skills",
+	Use:     "update",
+	Short:   "Fetch latest versions of external skills",
+	GroupID: groupLibrary,
 	Long:  "Re-fetches external skills from GitHub. Pinned versions are skipped; 'latest' skills get the newest tag.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()

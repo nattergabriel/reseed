@@ -78,14 +78,6 @@ func (l *Library) IsExternal(name string) bool {
 	return ok
 }
 
-func (l *Library) ResolvePack(name string) ([]string, error) {
-	skills, ok := l.Config.Packs[name]
-	if !ok {
-		return nil, fmt.Errorf("pack %q not found", name)
-	}
-	return skills, nil
-}
-
 func (l *Library) ResolveSkillOrPack(name string) ([]string, error) {
 	if skills, ok := l.Config.Packs[name]; ok {
 		return skills, nil

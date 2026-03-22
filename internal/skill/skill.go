@@ -42,10 +42,6 @@ func Copy(srcDir, dstDir string) error {
 	return copyDir(srcDir, dstDir)
 }
 
-func Remove(dirPath string) error {
-	return os.RemoveAll(dirPath)
-}
-
 func copyDir(src, dst string) error {
 	entries, err := os.ReadDir(src)
 	if err != nil {

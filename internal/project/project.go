@@ -60,20 +60,6 @@ func AddSkill(lib *library.Library, skillName string) error {
 	return skill.Copy(src, dst)
 }
 
-func RemoveSkill(skillName string) error {
-	path, err := SkillsPath()
-	if err != nil {
-		return err
-	}
-
-	skillPath := filepath.Join(path, skillName)
-	if !skill.IsSkill(skillPath) {
-		return fmt.Errorf("skill %q not found in project", skillName)
-	}
-
-	return skill.Remove(skillPath)
-}
-
 func SyncSkills(lib *library.Library) ([]string, error) {
 	installed, err := ListInstalled()
 	if err != nil {

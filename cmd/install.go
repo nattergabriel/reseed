@@ -14,8 +14,9 @@ func init() {
 }
 
 var installCmd = &cobra.Command{
-	Use:   "install <user/repo[/skill][@version]>",
-	Short: "Fetch skills from a GitHub repo into your library",
+	Use:     "install <user/repo[/skill][@version]>",
+	Short:   "Fetch skills from a GitHub repo into your library",
+	GroupID: groupLibrary,
 	Long: `Downloads skills from a GitHub repository and adds them to your library.
 
 Examples:

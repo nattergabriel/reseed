@@ -12,8 +12,9 @@ func init() {
 }
 
 var libraryCmd = &cobra.Command{
-	Use:   "library",
-	Short: "List all skills in your library",
+	Use:     "library",
+	Short:   "List all skills in your library",
+	GroupID: groupLibrary,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
 		if err != nil {

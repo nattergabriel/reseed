@@ -62,7 +62,7 @@ func TestList_NonExistent(t *testing.T) {
 	}
 }
 
-func TestCopyAndRemove(t *testing.T) {
+func TestCopy(t *testing.T) {
 	src := t.TempDir()
 	createSkill(t, src, "my-skill")
 	if err := os.WriteFile(filepath.Join(src, "my-skill", "extra.txt"), []byte("hello"), 0o644); err != nil {
@@ -80,12 +80,5 @@ func TestCopyAndRemove(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dst, "extra.txt"))
 	if err != nil || string(data) != "hello" {
 		t.Error("extra file not copied correctly")
-	}
-
-	if err := Remove(dst); err != nil {
-		t.Fatalf("remove: %v", err)
-	}
-	if _, err := os.Stat(dst); !os.IsNotExist(err) {
-		t.Error("directory should be removed")
 	}
 }

@@ -12,8 +12,9 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List skills installed in the current project",
+	Use:     "list",
+	Short:   "List skills installed in the current project",
+	GroupID: groupProject,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		skills, err := project.ListInstalled()
 		if err != nil {

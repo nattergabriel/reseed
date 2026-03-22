@@ -9,8 +9,9 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add [skill-or-pack]",
-	Short: "Add a skill or pack to the current project",
+	Use:     "add [skill-or-pack]",
+	Short:   "Add a skill or pack to the current project",
+	GroupID: groupProject,
 	Long:  "Copies skills from your library into the project's .agents/skills/ directory. Use --all to add every skill in your library.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
