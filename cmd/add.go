@@ -8,24 +8,38 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(addCmd)
-}
-
 var addCmd = &cobra.Command{
-	Use:   "add <skill-or-pack>",
+	Use:   "add [skill-or-pack]",
 	Short: "Add a skill or pack to the current project",
-	Long:  "Copies skills from your library into the project's .agents/skills/ directory.",
-	Args:  cobra.ExactArgs(1),
+	Long:  "Copies skills from your library into the project's .agents/skills/ directory. Use --all to add every skill in your library.",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		all, _ := cmd.Flags().GetBool("all")
+
+		if !all && len(args) == 0 {
+			return fmt.Errorf("provide a skill or pack name, or use --all")
+		}
+
 		lib, err := library.Open()
 		if err != nil {
 			return err
 		}
 
-		skills, err := lib.ResolveSkillOrPack(args[0])
-		if err != nil {
-			return err
+		var skills []string
+		if all {
+			skills, err = lib.ListSkills()
+			if err != nil {
+				return err
+			}
+			if len(skills) == 0 {
+				fmt.Println("No skills in library.")
+				return nil
+			}
+		} else {
+			skills, err = lib.ResolveSkillOrPack(args[0])
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, name := range skills {
@@ -37,4 +51,9 @@ var addCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func init() {
+	rootCmd.AddCommand(addCmd)
+	addCmd.Flags().Bool("all", false, "Add all skills from the library")
 }
