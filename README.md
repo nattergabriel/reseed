@@ -38,8 +38,8 @@ Your **library** is a directory where all your skills live. It can be any folder
 This only needs to be done once.
 
 ```bash
-reseed init ~/my-skills               # specific directory
-reseed init                           # or use the current directory
+reseed init ~/my-skills # specific directory
+reseed init             # or use the current directory
 ```
 
 ### 2. Add skills to your library
@@ -47,10 +47,10 @@ reseed init                           # or use the current directory
 Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. These are tracked in your library and can be updated when new versions are published.
 
 ```bash
-reseed install user/repo              # all skills from a repo
-reseed install user/repo/skill-name   # a specific skill
-reseed install user/repo@v1.0         # pinned to a tag
-reseed install user/repo user2/repo2  # multiple sources at once
+reseed install user/repo             # all skills from a repo
+reseed install user/repo/skill-name  # a specific skill
+reseed install user/repo@v1.0        # pinned to a tag
+reseed install user/repo user2/repo2 # multiple sources at once
 ```
 
 ### 3. Organize skills into packs
@@ -58,7 +58,7 @@ reseed install user/repo user2/repo2  # multiple sources at once
 Bundle related skills together for easy installation. The `pack` command opens an interactive selector.
 
 ```bash
-reseed pack frontend                  # create or edit the "frontend" pack
+reseed pack frontend # create or edit the "frontend" pack
 ```
 
 ### 4. Use skills in a project
@@ -66,11 +66,11 @@ reseed pack frontend                  # create or edit the "frontend" pack
 From inside a project, add skills or packs from your library. Run `reseed add` without arguments for an interactive selector.
 
 ```bash
-reseed add                               # interactive selection
-reseed add skill-a skill-b               # add by name
-reseed add my-pack skill-a               # mix packs and skills
-reseed add --all                         # add everything in your library
-reseed --dir .claude/skills add skill-a  # custom skills directory
+reseed add                              # interactive selection
+reseed add skill-a skill-b              # add by name
+reseed add my-pack skill-a              # mix packs and skills
+reseed add --all                        # add everything in your library
+reseed --dir .claude/skills add skill-a # custom skills directory
 ```
 
 ### 5. Keep things up to date
@@ -78,14 +78,14 @@ reseed --dir .claude/skills add skill-a  # custom skills directory
 Fetch the latest versions of open source skills into your library, then push those updates into your projects.
 
 ```bash
-reseed fetch                          # fetch latest versions from GitHub
-reseed sync                           # re-copy library skills into project
+reseed fetch # fetch latest versions from GitHub into library
+reseed sync  # re-copy library skills into project
 ```
 
 ### Other commands
 
 ```bash
-reseed library                        # list all skills in your library
+reseed library # list all skills in your library
 ```
 
 ## Contributing

@@ -35,14 +35,15 @@ var packCmd = &cobra.Command{
 			return nil
 		}
 
-		// Pre-select skills already in the pack
 		selected := make(map[int]bool)
 		if current, ok := lib.Config.Packs[packName]; ok {
+			inPack := make(map[string]bool, len(current))
 			for _, s := range current {
-				for i, name := range skills {
-					if name == s {
-						selected[i] = true
-					}
+				inPack[s] = true
+			}
+			for i, name := range skills {
+				if inPack[name] {
+					selected[i] = true
 				}
 			}
 		}
