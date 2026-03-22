@@ -65,7 +65,7 @@ reseed pack frontend  # create or edit the "frontend" pack
 From inside a project, add skills or packs from your library. Run `reseed add` without arguments for an interactive selector.
 
 <p align="center">
-  <img src=".github/screenshot.png" alt="reseed add interactive selector" width="500" />
+  <img src=".github/screenshot.png" alt="reseed add interactive selector"/>
 </p>
 
 ```bash
