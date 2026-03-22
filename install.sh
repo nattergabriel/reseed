@@ -32,14 +32,16 @@ VERSION_NUM="${VERSION#v}"
 ARCHIVE="${BINARY}_${VERSION_NUM}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE}"
 
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+TMPDIR_PATH=$(mktemp -d)
+trap 'rm -rf "$TMPDIR_PATH"' EXIT
 
 echo "Downloading ${BINARY} ${VERSION} for ${OS}/${ARCH}..."
-curl -sSfL "$URL" -o "${TMPDIR}/${ARCHIVE}"
-tar -xzf "${TMPDIR}/${ARCHIVE}" -C "$TMPDIR"
+curl -sSfL "$URL" -o "${TMPDIR_PATH}/${ARCHIVE}"
+tar -xzf "${TMPDIR_PATH}/${ARCHIVE}" -C "$TMPDIR_PATH"
 
 echo "Installing to ${INSTALL_DIR}/${BINARY}..."
-install -m 755 "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+if ! install -m 755 "${TMPDIR_PATH}/${BINARY}" "${INSTALL_DIR}/${BINARY}" 2>/dev/null; then
+  sudo install -m 755 "${TMPDIR_PATH}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+fi
 
-echo "$(${BINARY} version) installed successfully"
+echo "${BINARY} ${VERSION} installed successfully"
