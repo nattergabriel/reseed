@@ -9,14 +9,21 @@ import (
 	"github.com/nattergabriel/reseed/internal/skill"
 )
 
-const SkillsDir = ".agents/skills"
+var DefaultSkillsDir = ".agents/skills"
+
+// SkillsDirOverride is set via the --dir flag on the root command.
+var SkillsDirOverride string
 
 func SkillsPath() (string, error) {
+	dir := DefaultSkillsDir
+	if SkillsDirOverride != "" {
+		dir = SkillsDirOverride
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting working directory: %w", err)
 	}
-	return filepath.Join(cwd, SkillsDir), nil
+	return filepath.Join(cwd, dir), nil
 }
 
 func EnsureSkillsDir() (string, error) {
@@ -25,7 +32,7 @@ func EnsureSkillsDir() (string, error) {
 		return "", err
 	}
 	if err := os.MkdirAll(path, 0o755); err != nil {
-		return "", fmt.Errorf("creating %s: %w", SkillsDir, err)
+		return "", fmt.Errorf("creating %s: %w", path, err)
 	}
 	return path, nil
 }

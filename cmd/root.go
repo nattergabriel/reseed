@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/nattergabriel/reseed/internal/project"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,7 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringVar(&project.SkillsDirOverride, "dir", "", "override the skills directory (default .agents/skills)")
 	rootCmd.AddCommand(versionCmd)
 }
 
