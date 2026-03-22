@@ -12,12 +12,16 @@ func init() {
 }
 
 var initCmd = &cobra.Command{
-	Use:   "init <path>",
+	Use:   "init [path]",
 	Short: "Initialize a skill library",
-	Long:  "Creates a skill library at the given path, or recognizes an existing one.",
-	Args:  cobra.ExactArgs(1),
+	Long:  "Creates a skill library at the given path (or current directory), or recognizes an existing one.",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Init(args[0])
+		path := "."
+		if len(args) > 0 {
+			path = args[0]
+		}
+		lib, err := library.Init(path)
 		if err != nil {
 			return err
 		}

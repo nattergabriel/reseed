@@ -17,7 +17,7 @@ func GlobalConfigPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolving config dir: %w", err)
 	}
-	return filepath.Join(dir, "agentskills"), nil
+	return filepath.Join(dir, "reseed"), nil
 }
 
 func LoadGlobal() (*GlobalConfig, error) {

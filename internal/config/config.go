@@ -19,7 +19,7 @@ type LibraryConfig struct {
 }
 
 func LoadLibraryConfig(libraryPath string) (*LibraryConfig, error) {
-	path := filepath.Join(libraryPath, "config.yaml")
+	path := filepath.Join(libraryPath, "reseed.yaml")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -48,7 +48,7 @@ func LoadLibraryConfig(libraryPath string) (*LibraryConfig, error) {
 }
 
 func SaveLibraryConfig(libraryPath string, cfg *LibraryConfig) error {
-	path := filepath.Join(libraryPath, "config.yaml")
+	path := filepath.Join(libraryPath, "reseed.yaml")
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

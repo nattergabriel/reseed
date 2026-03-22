@@ -23,7 +23,7 @@ Reseed maintains a personal skill library and lets you install skills into any p
 curl -sSfL https://raw.githubusercontent.com/nattergabriel/reseed/main/install.sh | sh
 ```
 
-**Windows:** download the binary from the [latest release](https://github.com/nattergabriel/reseed/releases/latest).
+**Windows:** download the binary from the [latest release](https://github.com/nattergabriel/reseed/releases/latest) and add it to your PATH.
 
 ## Getting started
 

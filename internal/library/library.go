@@ -46,7 +46,7 @@ func Init(path string) (*Library, error) {
 		return nil, err
 	}
 
-	if err := config.SaveLibraryConfig(absPath, cfg); err != nil {
+	if err := writeConfigIfNotExists(absPath); err != nil {
 		return nil, err
 	}
 
@@ -105,4 +105,26 @@ func (l *Library) SaveConfig() error {
 
 func createDirIfNotExists(path string) error {
 	return os.MkdirAll(path, 0o755)
+}
+
+var configBoilerplate = []byte(`# Skills fetched from GitHub
+# sources:
+#   frontend-design:
+#     source: anthropics/skills/frontend-design
+#     version: latest
+
+# Named groups of skills
+# packs:
+#   frontend:
+#     - frontend-design
+#     - css-reset
+#     - accessibility
+`)
+
+func writeConfigIfNotExists(libraryPath string) error {
+	path := filepath.Join(libraryPath, "reseed.yaml")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	return os.WriteFile(path, configBoilerplate, 0o644)
 }

@@ -61,14 +61,9 @@ var updateCmd = &cobra.Command{
 	},
 }
 
-// parseSourceString parses "github:user/repo/skill" back into a SkillRef.
+// parseSourceString parses "user/repo/skill" back into a SkillRef.
 func parseSourceString(source, skillName string) (*github.SkillRef, error) {
-	s := strings.TrimPrefix(source, "github:")
-	if s == source {
-		return nil, fmt.Errorf("unsupported source: %s", source)
-	}
-
-	parts := strings.Split(s, "/")
+	parts := strings.Split(source, "/")
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid source: %s", source)
 	}

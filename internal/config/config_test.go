@@ -21,7 +21,7 @@ func TestSaveAndLoadLibraryConfig(t *testing.T) {
 
 	want := &LibraryConfig{
 		Sources: map[string]Source{
-			"sql-safety": {Source: "github:user/repo/sql-safety", Version: "v1.0"},
+			"sql-safety": {Source: "user/repo/sql-safety", Version: "v1.0"},
 		},
 		Packs: map[string][]string{
 			"backend": {"sql-safety", "logging"},
@@ -47,7 +47,7 @@ func TestSaveAndLoadLibraryConfig(t *testing.T) {
 
 func TestLoadLibraryConfig_Invalid(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(":::bad yaml"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "reseed.yaml"), []byte(":::bad yaml"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

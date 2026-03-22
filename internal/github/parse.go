@@ -50,7 +50,7 @@ func ParseRef(spec string) (*SkillRef, error) {
 	return ref, nil
 }
 
-// SourceString returns the config.yaml source string, e.g. "github:user/repo/skill"
+// SourceString returns the reseed.yaml source string, e.g. "user/repo/skill"
 func (r *SkillRef) SourceString(skillName string) string {
-	return fmt.Sprintf("github:%s/%s/%s", r.Owner, r.Repo, skillName)
+	return fmt.Sprintf("%s/%s/%s", r.Owner, r.Repo, skillName)
 }

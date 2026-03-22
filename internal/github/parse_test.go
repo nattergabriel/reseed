@@ -41,7 +41,7 @@ func TestParseRef(t *testing.T) {
 func TestSourceString(t *testing.T) {
 	ref := SkillRef{Owner: "user", Repo: "repo"}
 	got := ref.SourceString("my-skill")
-	want := "github:user/repo/my-skill"
+	want := "user/repo/my-skill"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
