@@ -10,14 +10,14 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(fetchCmd)
 }
 
-var updateCmd = &cobra.Command{
-	Use:     "update",
-	Short:   "Fetch latest versions of external skills",
+var fetchCmd = &cobra.Command{
+	Use:     "fetch",
+	Short:   "Fetch latest versions of external skills from GitHub",
 	GroupID: groupLibrary,
-	Long:  "Re-fetches external skills from GitHub. Pinned versions are skipped; 'latest' skills get the newest tag.",
+	Long:  "Fetches external skills from GitHub into your library. Pinned versions are skipped; 'latest' skills get the newest tag.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
 		if err != nil {
@@ -25,7 +25,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		if len(lib.Config.Sources) == 0 {
-			fmt.Println("No external skills to update.")
+			fmt.Println("No external skills to fetch.")
 			return nil
 		}
 
