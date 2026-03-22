@@ -1,4 +1,6 @@
-<h3 align="center">reseed</h3>
+<p align="center">
+  <img src=".github/logo.svg" alt="reseed" height="40" />
+</p>
 
 <p align="center">
   A CLI tool for managing and distributing <a href="https://agentskills.io">agent skills</a> across projects
