@@ -15,9 +15,7 @@
 
 ---
 
-AI coding agents like Claude Code, Cursor, and Copilot can be customized with [agent skills](https://agentskills.io): markdown files that tell them how to work in your project. But managing skills across multiple projects quickly gets tedious.
-
-Reseed gives you a single library to organize your skills. Write your own, pull in open source ones from GitHub and keep them synced, bundle related skills into packs, and install exactly what each project needs. Skills are copied into git so your whole team benefits without needing reseed.
+Reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project so every teammate has access. Your library can be a git repo to version and share your collection.
 
 ## Install
 
@@ -33,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/nattergabriel/reseed/main/install.s
 
 For full documentation, visit [reseed.mintlify.app](https://reseed.mintlify.app).
 
-Your **library** is a directory where all your skills live. It can be any folder on your machine (and can itself be a git repo to version and share your collection). From there, you install skills into any project's `.agents/skills/` directory.
+Your **library** is a directory where all your skills live. It can be any folder on your machine (and can itself be a git repo to version and share your collection). From there, you install skills into any project's `.agents/skills/` directory (or a custom path like `.claude/skills/` with `--dir`).
 
 ### 1. Create your library
 
@@ -55,11 +53,13 @@ reseed install user/repo@v1.0         # pinned to a tag
 
 ### 3. Use skills in a project
 
-From inside a project, add skills (or packs of skills) from your library. This copies them into the project's `.agents/skills/` directory.
+From inside a project, add skills or packs from your library.
 
 ```bash
-reseed add skill-name
-reseed add my-pack
+reseed add skill-a skill-b               # add one or more skills
+reseed add my-pack skill-a               # mix packs and skills
+reseed add --all                         # add everything in your library
+reseed --dir .claude/skills add skill-a  # custom skills directory
 ```
 
 ### 4. Keep things up to date
@@ -67,7 +67,7 @@ reseed add my-pack
 Fetch the latest versions of open source skills into your library, then push those updates into your projects.
 
 ```bash
-reseed update                         # fetch latest versions from GitHub into library
+reseed fetch                          # fetch latest versions from GitHub into library
 reseed sync                           # re-copy library skills into current project
 ```
 
@@ -75,9 +75,6 @@ reseed sync                           # re-copy library skills into current proj
 
 ```bash
 reseed library                        # list all skills in your library
-reseed list                           # list skills in current project
-reseed inspect pack-name              # show skills in a pack
-reseed remove skill-name              # remove a skill from current project
 ```
 
 ## Contributing
