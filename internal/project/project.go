@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/nattergabriel/reseed/internal/config"
 	"github.com/nattergabriel/reseed/internal/library"
 	"github.com/nattergabriel/reseed/internal/skill"
 )
@@ -18,6 +19,8 @@ func SkillsPath() (string, error) {
 	dir := DefaultSkillsDir
 	if SkillsDirOverride != "" {
 		dir = SkillsDirOverride
+	} else if cfg, err := config.LoadGlobal(); err == nil && cfg.Dir != "" {
+		dir = cfg.Dir
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -61,12 +64,12 @@ func AddSkill(lib *library.Library, skillName string) error {
 }
 
 func SyncSkills(lib *library.Library) ([]string, error) {
-	installed, err := ListInstalled()
+	projectDir, err := SkillsPath()
 	if err != nil {
 		return nil, err
 	}
 
-	projectDir, err := SkillsPath()
+	installed, err := skill.List(projectDir)
 	if err != nil {
 		return nil, err
 	}

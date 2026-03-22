@@ -177,7 +177,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m addModel) View() string {
-	s := "Select skills to add (space to toggle, enter to confirm):\n\n"
+	s := "Select skills or packs to add (space to toggle, enter to confirm):\n\n"
 
 	hasPacks := false
 	hasSkills := false

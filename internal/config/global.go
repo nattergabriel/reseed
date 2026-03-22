@@ -10,6 +10,7 @@ import (
 
 type GlobalConfig struct {
 	Library string `yaml:"library"`
+	Dir     string `yaml:"dir,omitempty"`
 }
 
 func GlobalConfigPath() (string, error) {
