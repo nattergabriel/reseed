@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const VersionLatest = "latest"
+
 type SkillRef struct {
 	Owner   string
 	Repo    string

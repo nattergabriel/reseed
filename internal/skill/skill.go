@@ -36,6 +36,9 @@ func List(parentDir string) ([]string, error) {
 }
 
 func Copy(srcDir, dstDir string) error {
+	if err := os.RemoveAll(dstDir); err != nil {
+		return fmt.Errorf("removing old directory %s: %w", dstDir, err)
+	}
 	if err := os.MkdirAll(dstDir, 0o755); err != nil {
 		return fmt.Errorf("creating directory %s: %w", dstDir, err)
 	}

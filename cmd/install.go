@@ -42,7 +42,7 @@ Examples:
 
 			versionStr := ref.Version
 			if versionStr == "" {
-				versionStr = "latest"
+				versionStr = github.VersionLatest
 			}
 
 			fmt.Printf("Fetching from %s/%s", ref.Owner, ref.Repo)

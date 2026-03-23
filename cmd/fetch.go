@@ -33,12 +33,12 @@ var fetchCmd = &cobra.Command{
 		var errors []string
 
 		for name, src := range lib.Config.Sources {
-			if src.Version != "latest" {
+			if src.Version != github.VersionLatest {
 				fmt.Printf("  - %s (pinned at %s, skipped)\n", name, src.Version)
 				continue
 			}
 
-			ref, err := parseSourceString(src.Source)
+			ref, err := github.ParseRef(src.Source)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", name, err))
 				continue
@@ -59,24 +59,4 @@ var fetchCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-// parseSourceString parses "user/repo/path/to/skill" back into a SkillRef.
-func parseSourceString(source string) (*github.SkillRef, error) {
-	parts := strings.SplitN(source, "/", 3)
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid source: %s", source)
-	}
-
-	ref := &github.SkillRef{
-		Owner:   parts[0],
-		Repo:    parts[1],
-		Version: "latest",
-	}
-
-	if len(parts) == 3 {
-		ref.Path = parts[2]
-	}
-
-	return ref, nil
 }

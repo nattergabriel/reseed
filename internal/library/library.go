@@ -50,7 +50,12 @@ func Init(path string) (*Library, error) {
 		return nil, err
 	}
 
-	if err := config.SaveGlobal(&config.GlobalConfig{Library: absPath}); err != nil {
+	globalCfg, err := config.LoadGlobal()
+	if err != nil {
+		globalCfg = &config.GlobalConfig{}
+	}
+	globalCfg.Library = absPath
+	if err := config.SaveGlobal(globalCfg); err != nil {
 		return nil, err
 	}
 
@@ -115,8 +120,14 @@ var configBoilerplate = []byte(`# Skills fetched from GitHub
 
 func writeConfigIfNotExists(libraryPath string) error {
 	path := filepath.Join(libraryPath, "reseed.yaml")
-	if _, err := os.Stat(path); err == nil {
-		return nil
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return err
 	}
-	return os.WriteFile(path, configBoilerplate, 0o644)
+	defer func() { _ = f.Close() }()
+	_, err = f.Write(configBoilerplate)
+	return err
 }

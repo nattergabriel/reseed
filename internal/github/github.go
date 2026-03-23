@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -37,9 +38,8 @@ type tag struct {
 }
 
 // ResolveVersion resolves "latest" or empty version to the most recent tag.
-// A specific version string is returned as-is.
 func (c *Client) ResolveVersion(owner, repo, version string) (string, error) {
-	if version != "" && version != "latest" {
+	if version != "" && version != VersionLatest {
 		return version, nil
 	}
 
@@ -82,18 +82,9 @@ type ExtractedSkill struct {
 // If ref.Path is set, only skills at or under that path are extracted.
 // Returns the extracted skills with their names and repo-relative paths.
 func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
-	version := ref.Version
-	if version == "latest" {
-		version = ""
-	}
-
-	// Resolve version if needed
-	if version == "" {
-		resolved, err := c.ResolveVersion(ref.Owner, ref.Repo, "")
-		if err != nil {
-			return nil, err
-		}
-		version = resolved
+	version, err := c.ResolveVersion(ref.Owner, ref.Repo, ref.Version)
+	if err != nil {
+		return nil, err
 	}
 
 	tarURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/tarball", ref.Owner, ref.Repo)
@@ -248,5 +239,8 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 			Path: info.path,
 		})
 	}
+	sort.Slice(skills, func(i, j int) bool {
+		return skills[i].Name < skills[j].Name
+	})
 	return skills, nil
 }
