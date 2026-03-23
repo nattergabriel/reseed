@@ -38,8 +38,7 @@ var fetchCmd = &cobra.Command{
 				continue
 			}
 
-			// Parse the source string to get owner/repo/skill
-			ref, err := parseSourceString(src.Source, name)
+			ref, err := parseSourceString(src.Source)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", name, err))
 				continue
@@ -62,9 +61,9 @@ var fetchCmd = &cobra.Command{
 	},
 }
 
-// parseSourceString parses "user/repo/skill" back into a SkillRef.
-func parseSourceString(source, skillName string) (*github.SkillRef, error) {
-	parts := strings.Split(source, "/")
+// parseSourceString parses "user/repo/path/to/skill" back into a SkillRef.
+func parseSourceString(source string) (*github.SkillRef, error) {
+	parts := strings.SplitN(source, "/", 3)
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid source: %s", source)
 	}
@@ -75,10 +74,8 @@ func parseSourceString(source, skillName string) (*github.SkillRef, error) {
 		Version: "latest",
 	}
 
-	if len(parts) >= 3 {
-		ref.Skill = parts[2]
-	} else {
-		ref.Skill = skillName
+	if len(parts) == 3 {
+		ref.Path = parts[2]
 	}
 
 	return ref, nil

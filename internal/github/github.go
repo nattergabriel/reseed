@@ -65,16 +65,23 @@ func (c *Client) ResolveVersion(owner, repo, version string) (string, error) {
 	}
 
 	if len(tags) == 0 {
-		// No tags — use default branch (empty ref in tarball URL)
+		// No tags - use default branch (empty ref in tarball URL)
 		return "", nil
 	}
 
 	return tags[0].Name, nil
 }
 
+// ExtractedSkill holds the name and repo-relative path of an extracted skill.
+type ExtractedSkill struct {
+	Name string // directory name, e.g. "commit"
+	Path string // repo-relative path, e.g. "src/skills/commit"
+}
+
 // FetchSkills downloads a repo tarball and extracts skill directories into destDir.
-// If ref.Skill is set, only that skill is extracted. Returns the names of extracted skills.
-func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]string, error) {
+// If ref.Path is set, only skills at or under that path are extracted.
+// Returns the extracted skills with their names and repo-relative paths.
+func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
 	version := ref.Version
 	if version == "latest" {
 		version = ""
@@ -109,14 +116,19 @@ func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]string, error) {
 		return nil, fmt.Errorf("downloading %s/%s: HTTP %d", ref.Owner, ref.Repo, resp.StatusCode)
 	}
 
-	return extractSkills(resp.Body, destDir, ref.Skill)
+	return extractSkills(resp.Body, destDir, ref.Path)
 }
 
 // extractSkills reads a tar.gz stream and extracts skill directories.
 // The tarball root is "{owner}-{repo}-{sha}/", which gets stripped.
 // A skill is any directory containing a SKILL.md file.
-// Skills can be at any depth in the repo — they are flattened into destDir/<skillname>/.
-func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, error) {
+// Skills are flattened into destDir/<skillname>/.
+//
+// filterPath scopes extraction:
+//   - "" extracts all skills in the repo
+//   - "src/skills/commit" extracts only the skill at that exact path
+//   - "src/skills" extracts all skills found under that directory
+func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedSkill, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("decompressing: %w", err)
@@ -133,9 +145,9 @@ func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, err
 	}
 	var entries []entry
 
-	// skillPrefixes maps "path/to/skillname/" -> "skillname"
+	// skillDirs maps "path/to/skillname/" -> skill name
 	// Built by finding SKILL.md files at any depth.
-	skillPrefixes := make(map[string]string)
+	skillDirs := make(map[string]string)
 
 	for {
 		hdr, err := tr.Next()
@@ -174,30 +186,37 @@ func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, err
 
 		// Detect SKILL.md at any depth: "some/path/skillname/SKILL.md"
 		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == "SKILL.md" {
-			skillDir := filepath.Dir(name)            // "some/path/skillname"
-			skillName := filepath.Base(skillDir)      // "skillname"
-			prefix := skillDir + "/"                  // "some/path/skillname/"
-			skillPrefixes[prefix] = skillName
-		}
-	}
+			skillDir := filepath.Dir(name)      // "some/path/skillname"
+			skillName := filepath.Base(skillDir) // "skillname"
 
-	// Extract files belonging to skill directories, flattening into destDir/skillname/
-	extracted := make(map[string]bool)
-	for _, e := range entries {
-		for prefix, skillName := range skillPrefixes {
-			if !strings.HasPrefix(e.name, prefix) && e.name != strings.TrimSuffix(prefix, "/") {
+			// Apply path filter: only include skills at or under filterPath
+			if filterPath != "" && skillDir != filterPath && !strings.HasPrefix(skillDir, filterPath+"/") {
 				continue
 			}
 
-			if onlySkill != "" && skillName != onlySkill {
+			skillDirs[skillDir+"/"] = skillName
+		}
+	}
+
+	if filterPath != "" && len(skillDirs) == 0 {
+		return nil, fmt.Errorf("no skills found under %q", filterPath)
+	}
+
+	// Extract files belonging to skill directories, flattening into destDir/skillname/
+	type skillInfo struct {
+		name string
+		path string // repo-relative dir path
+	}
+	extracted := make(map[string]skillInfo)
+
+	for _, e := range entries {
+		for prefix, skillName := range skillDirs {
+			if !strings.HasPrefix(e.name, prefix) && e.name != strings.TrimSuffix(prefix, "/") {
 				continue
 			}
 
 			// Compute the path relative to the skill directory
 			relPath := strings.TrimPrefix(e.name, prefix)
-			if relPath == "" && e.typeflag == tar.TypeDir {
-				relPath = ""
-			}
 			destPath := filepath.Join(destDir, skillName, relPath)
 
 			switch e.typeflag {
@@ -214,18 +233,20 @@ func extractSkills(r io.Reader, destDir string, onlySkill string) ([]string, err
 				}
 			}
 
-			extracted[skillName] = true
+			extracted[skillName] = skillInfo{
+				name: skillName,
+				path: strings.TrimSuffix(prefix, "/"),
+			}
 			break
 		}
 	}
 
-	if onlySkill != "" && !extracted[onlySkill] {
-		return nil, fmt.Errorf("skill %q not found in repository", onlySkill)
+	var skills []ExtractedSkill
+	for _, info := range extracted {
+		skills = append(skills, ExtractedSkill{
+			Name: info.name,
+			Path: info.path,
+		})
 	}
-
-	var names []string
-	for name := range extracted {
-		names = append(names, name)
-	}
-	return names, nil
+	return skills, nil
 }

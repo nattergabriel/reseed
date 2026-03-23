@@ -8,7 +8,7 @@ import (
 type SkillRef struct {
 	Owner   string
 	Repo    string
-	Skill   string // empty = all skills in repo
+	Path    string // sub-path within repo; empty = all skills
 	Version string // empty = latest
 }
 
@@ -16,8 +16,8 @@ type SkillRef struct {
 //
 //	user/repo
 //	user/repo@version
-//	user/repo/skill
-//	user/repo/skill@version
+//	user/repo/path/to/skill
+//	user/repo/path/to/skills@version
 func ParseRef(spec string) (*SkillRef, error) {
 	ref := &SkillRef{}
 
@@ -30,17 +30,15 @@ func ParseRef(spec string) (*SkillRef, error) {
 		}
 	}
 
-	parts := strings.Split(spec, "/")
-	switch len(parts) {
-	case 2:
-		ref.Owner = parts[0]
-		ref.Repo = parts[1]
-	case 3:
-		ref.Owner = parts[0]
-		ref.Repo = parts[1]
-		ref.Skill = parts[2]
-	default:
-		return nil, fmt.Errorf("invalid specifier %q: expected user/repo or user/repo/skill", spec)
+	parts := strings.SplitN(spec, "/", 3)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid specifier %q: expected user/repo[/path]", spec)
+	}
+
+	ref.Owner = parts[0]
+	ref.Repo = parts[1]
+	if len(parts) == 3 && parts[2] != "" {
+		ref.Path = stripGitHubURLPath(strings.TrimSuffix(parts[2], "/"))
 	}
 
 	if ref.Owner == "" || ref.Repo == "" {
@@ -50,7 +48,24 @@ func ParseRef(spec string) (*SkillRef, error) {
 	return ref, nil
 }
 
-// SourceString returns the reseed.yaml source string, e.g. "user/repo/skill"
-func (r *SkillRef) SourceString(skillName string) string {
-	return fmt.Sprintf("%s/%s/%s", r.Owner, r.Repo, skillName)
+// stripGitHubURLPath removes "tree/<ref>/" or "blob/<ref>/" prefixes that appear
+// when a path is copied from a GitHub web URL.
+func stripGitHubURLPath(path string) string {
+	if !strings.HasPrefix(path, "tree/") && !strings.HasPrefix(path, "blob/") {
+		return path
+	}
+	// Skip past "tree/" or "blob/"
+	rest := path[strings.Index(path, "/")+1:]
+	// Skip past the ref segment (branch, tag, or SHA)
+	if idx := strings.Index(rest, "/"); idx != -1 {
+		return rest[idx+1:]
+	}
+	// Just "tree/main" with no further path
+	return ""
+}
+
+// SourceString returns the reseed.yaml source string for a skill at the given path.
+// E.g., "user/repo/src/skills/commit"
+func (r *SkillRef) SourceString(skillPath string) string {
+	return fmt.Sprintf("%s/%s/%s", r.Owner, r.Repo, skillPath)
 }

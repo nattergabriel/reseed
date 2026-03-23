@@ -14,16 +14,17 @@ func init() {
 }
 
 var installCmd = &cobra.Command{
-	Use:     "install <user/repo[/skill][@version]>",
+	Use:     "install <user/repo[/path][@version]>",
 	Short:   "Fetch skills from a GitHub repo into your library",
 	GroupID: groupLibrary,
 	Long: `Downloads skills from GitHub repositories and adds them to your library.
 
 Examples:
-  reseed install user/repo              # all skills from the repo
-  reseed install user/repo/my-skill     # one specific skill
-  reseed install user/repo@v2.0         # pin to a tag
-  reseed install user/repo user2/repo2  # multiple sources at once`,
+  reseed install user/repo                    # all skills from the repo
+  reseed install user/repo/src/skills/commit  # one specific skill
+  reseed install user/repo/src/skills         # all skills under a directory
+  reseed install user/repo@v2.0               # pin to a tag
+  reseed install user/repo user2/repo2        # multiple sources at once`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
@@ -45,8 +46,8 @@ Examples:
 			}
 
 			fmt.Printf("Fetching from %s/%s", ref.Owner, ref.Repo)
-			if ref.Skill != "" {
-				fmt.Printf("/%s", ref.Skill)
+			if ref.Path != "" {
+				fmt.Printf("/%s", ref.Path)
 			}
 			fmt.Printf(" (%s)...\n", versionStr)
 
@@ -55,12 +56,12 @@ Examples:
 				return err
 			}
 
-			for _, name := range skills {
-				lib.Config.Sources[name] = config.Source{
-					Source:  ref.SourceString(name),
+			for _, skill := range skills {
+				lib.Config.Sources[skill.Name] = config.Source{
+					Source:  ref.SourceString(skill.Path),
 					Version: versionStr,
 				}
-				fmt.Printf("  + %s\n", name)
+				fmt.Printf("  + %s\n", skill.Name)
 			}
 		}
 
