@@ -31,12 +31,31 @@ var libraryCmd = &cobra.Command{
 			return nil
 		}
 
+		var local, external []string
 		for _, name := range skills {
-			suffix := ""
 			if lib.IsExternal(name) {
-				suffix = " (external)"
+				external = append(external, name)
+			} else {
+				local = append(local, name)
 			}
-			fmt.Printf("  %s%s\n", name, suffix)
+		}
+
+		if len(local) > 0 {
+			fmt.Println("Local:")
+			for _, name := range local {
+				fmt.Printf("  %s\n", name)
+			}
+		}
+
+		if len(external) > 0 {
+			if len(local) > 0 {
+				fmt.Println()
+			}
+			fmt.Println("External:")
+			for _, name := range external {
+				src := lib.Config.Sources[name]
+				fmt.Printf("  %s  (%s, %s)\n", name, src.Source, src.Version)
+			}
 		}
 
 		return nil
