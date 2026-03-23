@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/logo.svg" alt="reseed" height="40" />
+  <img src=".github/logo.png" alt="reseed" height="40" />
 </p>
 
 <p align="center">
@@ -47,9 +47,10 @@ reseed init              # or use the current directory
 Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. These are tracked in your library and can be updated when new versions are published.
 
 ```bash
-reseed install user/repo             # all skills from a repo
-reseed install user/repo/skill-name  # a specific skill
-reseed install user/repo@v1.0        # pinned to a tag
+reseed install user/repo                    # all skills from a repo
+reseed install user/repo/path/to/skill      # a specific skill
+reseed install user/repo/path/to/skills     # all skills under a directory
+reseed install user/repo@v1.0               # pinned to a tag
 ```
 
 ### 3. Organize skills into packs
