@@ -160,6 +160,11 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 			continue
 		}
 
+		// Skip entries clearly outside the filter scope to avoid buffering the whole repo
+		if filterPath != "" && !strings.HasPrefix(name, filterPath+"/") && name != filterPath {
+			continue
+		}
+
 		var data []byte
 		if hdr.Typeflag == tar.TypeReg {
 			data, err = io.ReadAll(tr)

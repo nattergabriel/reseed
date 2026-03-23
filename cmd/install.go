@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/nattergabriel/reseed/internal/config"
 	"github.com/nattergabriel/reseed/internal/github"
@@ -10,6 +11,7 @@ import (
 )
 
 func init() {
+	installCmd.Flags().StringP("pack", "p", "", "create a pack with all installed skills")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -24,7 +26,8 @@ Examples:
   reseed install user/repo/src/skills/commit  # one specific skill
   reseed install user/repo/src/skills         # all skills under a directory
   reseed install user/repo@v2.0               # pin to a tag
-  reseed install user/repo user2/repo2        # multiple sources at once`,
+  reseed install user/repo user2/repo2        # multiple sources at once
+  reseed install user/repo/src/skills -p kit  # install and create a pack`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
@@ -32,7 +35,9 @@ Examples:
 			return err
 		}
 
+		packName, _ := cmd.Flags().GetString("pack")
 		client := github.NewClient()
+		var packSkills []string // only used when packName != ""
 
 		for _, arg := range args {
 			ref, err := github.ParseRef(arg)
@@ -61,8 +66,17 @@ Examples:
 					Source:  ref.SourceString(skill.Path),
 					Version: versionStr,
 				}
+				if packName != "" {
+					packSkills = append(packSkills, skill.Name)
+				}
 				fmt.Printf("  + %s\n", skill.Name)
 			}
+		}
+
+		if packName != "" && len(packSkills) > 0 {
+			sort.Strings(packSkills)
+			lib.Config.Packs[packName] = packSkills
+			fmt.Printf("  Pack %q created with %d skills\n", packName, len(packSkills))
 		}
 
 		if err := lib.SaveConfig(); err != nil {

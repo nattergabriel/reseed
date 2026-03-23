@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/nattergabriel/reseed/internal/github"
@@ -32,7 +33,14 @@ var fetchCmd = &cobra.Command{
 		client := github.NewClient()
 		var errors []string
 
-		for name, src := range lib.Config.Sources {
+		names := make([]string, 0, len(lib.Config.Sources))
+		for name := range lib.Config.Sources {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			src := lib.Config.Sources[name]
 			if src.Version != github.VersionLatest {
 				fmt.Printf("  - %s (pinned at %s, skipped)\n", name, src.Version)
 				continue

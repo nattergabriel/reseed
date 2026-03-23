@@ -136,17 +136,7 @@ func (m packModel) View() string {
 	s := fmt.Sprintf("Pack %q - select skills (space to toggle, enter to confirm):\n\n", m.packName)
 
 	for i, name := range m.skills {
-		cursor := "  "
-		if m.cursor == i {
-			cursor = "> "
-		}
-
-		check := "[ ]"
-		if m.selected[i] {
-			check = "[x]"
-		}
-
-		s += fmt.Sprintf("%s%s %s\n", cursor, check, name)
+		s += formatItem(i, addItem{name: name}, m.cursor, m.selected)
 	}
 
 	s += "\nq/esc to cancel"
