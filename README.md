@@ -29,54 +29,49 @@ curl -fsSL https://raw.githubusercontent.com/nattergabriel/reseed/main/install.s
 
 ## Getting started
 
-For full documentation, visit [reseed.mintlify.app](https://reseed.mintlify.app).
-
-Your **library** is a directory where all your skills live. It can be any folder on your machine (and can itself be a git repo to version and share your collection). From there, you install skills into any project's `.agents/skills/` directory. You can change the default directory with `reseed config dir .claude/skills`.
+Your **library** is a directory where all your skills live. It can be any folder on your machine (and can itself be a git repo to version and share your collection). From there, you install skills into any project's `.agents/skills/` directory.
 
 ### 1. Create your library
 
 This only needs to be done once.
 
 ```bash
-reseed init ~/my-skills  # specific directory
-reseed init              # or use the current directory
+reseed init ~/skills
+# ✓ Library created at ~/skills
 ```
 
 ### 2. Add skills to your library
 
-Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. These are tracked in your library and can be updated when new versions are published.
+Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. These are tracked in your library and can be updated when new versions are published. Use `--pack` to bundle them together for easy installation.
 
 ```bash
-reseed install user/repo                    # all skills from a repo
-reseed install user/repo/path/to/skill      # a specific skill
-reseed install user/repo/path/to/skills     # all skills under a directory
-reseed install user/repo@v1.0               # pinned to a tag
+reseed install anthropics/skills/skills --pack anthropic
+#   + code-review
+#   + generate-tests
+#   + refactor
+# ✓ 3 skills installed, pack "anthropic" created
 ```
 
-### 3. Organize skills into packs
+### 3. Use skills in a project
 
-Bundle related skills together for easy installation. The `pack` command opens an interactive selector.
+From inside a project, add skills or packs from your library.
 
 ```bash
-reseed pack frontend  # create or edit the "frontend" pack
+reseed add anthropic
+#   + code-review
+#   + generate-tests
+#   + refactor
+# ✓ 3 skills added to your project
 ```
 
-### 4. Use skills in a project
-
-From inside a project, add skills or packs from your library. Run `reseed add` without arguments for an interactive selector.
+Or run `reseed add` without arguments to pick skills interactively:
 
 <p align="center">
   <img src=".github/screenshot.png" alt="reseed add interactive selector"/>
 </p>
 
-```bash
-reseed add                  # interactive selection
-reseed add skill-a skill-b  # add by name
-reseed add my-pack skill-a  # mix packs and skills
-reseed add --all            # add everything in your library
-```
 
-### 5. Keep things up to date
+### 4. Keep things up to date
 
 Fetch the latest versions of open source skills into your library, then push those updates into your projects.
 
@@ -85,12 +80,7 @@ reseed fetch  # fetch latest versions from GitHub into library
 reseed sync   # re-copy library skills into project
 ```
 
-### Other commands
-
-```bash
-reseed library            # list all skills in your library
-reseed config dir <path>  # change default skills directory
-```
+For the full walkthrough, see the [quickstart guide](https://reseed.mintlify.app/quickstart). Browse the [docs](https://reseed.mintlify.app) for details on every command.
 
 ## Contributing
 
