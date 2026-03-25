@@ -3,6 +3,7 @@ package github
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,13 +39,13 @@ type tag struct {
 }
 
 // ResolveVersion resolves "latest" or empty version to the most recent tag.
-func (c *Client) ResolveVersion(owner, repo, version string) (string, error) {
+func (c *Client) ResolveVersion(ctx context.Context, owner, repo, version string) (string, error) {
 	if version != "" && version != VersionLatest {
 		return version, nil
 	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/tags?per_page=1", owner, repo)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -81,8 +82,8 @@ type ExtractedSkill struct {
 // FetchSkills downloads a repo tarball and extracts skill directories into destDir.
 // If ref.Path is set, only skills at or under that path are extracted.
 // Returns the extracted skills with their names and repo-relative paths.
-func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
-	version, err := c.ResolveVersion(ref.Owner, ref.Repo, ref.Version)
+func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
+	version, err := c.ResolveVersion(ctx, ref.Owner, ref.Repo, ref.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (c *Client) FetchSkills(ref *SkillRef, destDir string) ([]ExtractedSkill, e
 		tarURL += "/" + version
 	}
 
-	req, err := http.NewRequest("GET", tarURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", tarURL, nil)
 	if err != nil {
 		return nil, err
 	}

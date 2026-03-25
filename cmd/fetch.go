@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/huh/spinner"
 	"github.com/nattergabriel/reseed/internal/github"
 	"github.com/nattergabriel/reseed/internal/library"
 	"github.com/spf13/cobra"
@@ -18,7 +20,7 @@ var fetchCmd = &cobra.Command{
 	Use:     "fetch",
 	Short:   "Fetch latest versions of external skills from GitHub",
 	GroupID: groupLibrary,
-	Long:  "Fetches external skills from GitHub into your library. Pinned versions are skipped; 'latest' skills get the newest tag.",
+	Long:    "Fetches external skills from GitHub into your library. Pinned versions are skipped; 'latest' skills get the newest tag.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
 		if err != nil {
@@ -52,13 +54,18 @@ var fetchCmd = &cobra.Command{
 				continue
 			}
 
-			fmt.Printf("  ~ %s...\n", name)
-
-			_, err = client.FetchSkills(ref, lib.SkillsDir())
+			err = spinner.New().
+				Title(fmt.Sprintf("  Fetching %s...", name)).
+				ActionWithErr(func(ctx context.Context) error {
+					_, ferr := client.FetchSkills(ctx, ref, lib.SkillsDir())
+					return ferr
+				}).
+				Run()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", name, err))
 				continue
 			}
+			fmt.Printf("  ~ %s\n", name)
 		}
 
 		if len(errors) > 0 {

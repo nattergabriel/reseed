@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
+	"github.com/charmbracelet/huh/spinner"
 	"github.com/nattergabriel/reseed/internal/config"
 	"github.com/nattergabriel/reseed/internal/github"
 	"github.com/nattergabriel/reseed/internal/library"
@@ -50,13 +52,20 @@ Examples:
 				versionStr = github.VersionLatest
 			}
 
-			fmt.Printf("Fetching from %s/%s", ref.Owner, ref.Repo)
+			source := fmt.Sprintf("%s/%s", ref.Owner, ref.Repo)
 			if ref.Path != "" {
-				fmt.Printf("/%s", ref.Path)
+				source += "/" + ref.Path
 			}
-			fmt.Printf(" (%s)...\n", versionStr)
 
-			skills, err := client.FetchSkills(ref, lib.SkillsDir())
+			var skills []github.ExtractedSkill
+			err = spinner.New().
+				Title(fmt.Sprintf("  Fetching %s (%s)...", source, versionStr)).
+				ActionWithErr(func(ctx context.Context) error {
+					var ferr error
+					skills, ferr = client.FetchSkills(ctx, ref, lib.SkillsDir())
+					return ferr
+				}).
+				Run()
 			if err != nil {
 				return err
 			}

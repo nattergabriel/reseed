@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/nattergabriel/reseed/internal/library"
 	"github.com/nattergabriel/reseed/internal/project"
@@ -73,6 +74,13 @@ type addItem struct {
 	count  int // number of skills in pack
 }
 
+func (i addItem) FilterValue() string {
+	if i.isPack {
+		return fmt.Sprintf("%s (%d skills)", i.name, i.count)
+	}
+	return i.name
+}
+
 func addInteractive(lib *library.Library) ([]string, error) {
 	available, err := lib.ListSkills()
 	if err != nil {
@@ -90,7 +98,8 @@ func addInteractive(lib *library.Library) ([]string, error) {
 	}
 	sort.Strings(packNames)
 
-	var items []addItem
+	selected := make(map[int]bool)
+	var items []list.Item
 	for _, name := range packNames {
 		items = append(items, addItem{name: name, isPack: true, count: len(lib.Config.Packs[name])})
 	}
@@ -98,19 +107,24 @@ func addInteractive(lib *library.Library) ([]string, error) {
 		items = append(items, addItem{name: name})
 	}
 
-	m := addModel{
-		items:    items,
-		packs:    lib.Config.Packs,
-		selected: make(map[int]bool),
+	delegate := checkboxDelegate{selected: selected}
+	l := list.New(items, delegate, 0, 0)
+	l.Title = "Select skills or packs to add (space: toggle, enter: confirm)"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+
+	m := checkboxModel{
+		list:     l,
+		selected: selected,
 	}
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	result, err := p.Run()
 	if err != nil {
 		return nil, err
 	}
 
-	final := result.(addModel)
+	final := result.(checkboxModel)
 	if final.cancelled {
 		fmt.Println("Cancelled.")
 		return nil, nil
@@ -118,12 +132,13 @@ func addInteractive(lib *library.Library) ([]string, error) {
 
 	seen := make(map[string]bool)
 	var chosen []string
-	for i, item := range final.items {
+	for i, listItem := range final.list.Items() {
 		if !final.selected[i] {
 			continue
 		}
+		item := listItem.(addItem)
 		if item.isPack {
-			for _, s := range final.packs[item.name] {
+			for _, s := range lib.Config.Packs[item.name] {
 				if !seen[s] {
 					seen[s] = true
 					chosen = append(chosen, s)
@@ -140,94 +155,3 @@ func addInteractive(lib *library.Library) ([]string, error) {
 	return chosen, nil
 }
 
-type addModel struct {
-	items     []addItem
-	packs     map[string][]string
-	selected  map[int]bool
-	cursor    int
-	cancelled bool
-}
-
-func (m addModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.items)-1 {
-				m.cursor++
-			}
-		case " ":
-			m.selected[m.cursor] = !m.selected[m.cursor]
-		case "enter":
-			return m, tea.Quit
-		case "q", "esc", "ctrl+c":
-			m.cancelled = true
-			return m, tea.Quit
-		}
-	}
-	return m, nil
-}
-
-func (m addModel) View() string {
-	s := "Select skills or packs to add (space to toggle, enter to confirm):\n\n"
-
-	hasPacks := false
-	hasSkills := false
-	for _, item := range m.items {
-		if item.isPack {
-			hasPacks = true
-		} else {
-			hasSkills = true
-		}
-	}
-
-	if hasPacks {
-		s += "Packs:\n"
-		for i, item := range m.items {
-			if !item.isPack {
-				continue
-			}
-			s += formatItem(i, item, m.cursor, m.selected)
-		}
-		if hasSkills {
-			s += "\nSkills:\n"
-		}
-	}
-
-	for i, item := range m.items {
-		if item.isPack {
-			continue
-		}
-		s += formatItem(i, item, m.cursor, m.selected)
-	}
-
-	s += "\nq/esc to cancel"
-	return s
-}
-
-func formatItem(index int, item addItem, cursor int, selected map[int]bool) string {
-	c := "  "
-	if cursor == index {
-		c = "> "
-	}
-
-	check := "[ ]"
-	if selected[index] {
-		check = "[x]"
-	}
-
-	label := item.name
-	if item.isPack {
-		label = fmt.Sprintf("%s (%d skills)", item.name, item.count)
-	}
-
-	return fmt.Sprintf("%s%s %s\n", c, check, label)
-}

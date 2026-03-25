@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/nattergabriel/reseed/internal/library"
 	"github.com/spf13/cobra"
@@ -48,28 +49,38 @@ var packCmd = &cobra.Command{
 			}
 		}
 
-		m := packModel{
-			packName: packName,
-			skills:   skills,
+		var items []list.Item
+		for _, name := range skills {
+			items = append(items, addItem{name: name})
+		}
+
+		delegate := checkboxDelegate{selected: selected}
+		l := list.New(items, delegate, 0, 0)
+		l.Title = fmt.Sprintf("Pack %q (space: toggle, enter: confirm)", packName)
+		l.SetShowStatusBar(false)
+		l.SetFilteringEnabled(false)
+
+		m := checkboxModel{
+			list:     l,
 			selected: selected,
 		}
 
-		p := tea.NewProgram(m)
+		p := tea.NewProgram(m, tea.WithAltScreen())
 		result, err := p.Run()
 		if err != nil {
 			return err
 		}
 
-		final := result.(packModel)
+		final := result.(checkboxModel)
 		if final.cancelled {
 			fmt.Println("Cancelled.")
 			return nil
 		}
 
 		var chosen []string
-		for i, name := range final.skills {
+		for i, listItem := range final.list.Items() {
 			if final.selected[i] {
-				chosen = append(chosen, name)
+				chosen = append(chosen, listItem.(addItem).name)
 			}
 		}
 
@@ -94,51 +105,4 @@ var packCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-type packModel struct {
-	packName  string
-	skills    []string
-	selected  map[int]bool
-	cursor    int
-	cancelled bool
-}
-
-func (m packModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m packModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.skills)-1 {
-				m.cursor++
-			}
-		case " ":
-			m.selected[m.cursor] = !m.selected[m.cursor]
-		case "enter":
-			return m, tea.Quit
-		case "q", "esc", "ctrl+c":
-			m.cancelled = true
-			return m, tea.Quit
-		}
-	}
-	return m, nil
-}
-
-func (m packModel) View() string {
-	s := fmt.Sprintf("Pack %q - select skills (space to toggle, enter to confirm):\n\n", m.packName)
-
-	for i, name := range m.skills {
-		s += formatItem(i, addItem{name: name}, m.cursor, m.selected)
-	}
-
-	s += "\nq/esc to cancel"
-	return s
 }
