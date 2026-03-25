@@ -65,9 +65,3 @@ func stripGitHubURLPath(path string) string {
 	// Just "tree/main" with no further path
 	return ""
 }
-
-// SourceString returns the reseed.yaml source string for a skill at the given path.
-// E.g., "user/repo/src/skills/commit"
-func (r *SkillRef) SourceString(skillPath string) string {
-	return fmt.Sprintf("%s/%s/%s", r.Owner, r.Repo, skillPath)
-}

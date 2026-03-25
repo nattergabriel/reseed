@@ -3,17 +3,16 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"sort"
+	"path/filepath"
 
 	"github.com/charmbracelet/huh/spinner"
-	"github.com/nattergabriel/reseed/internal/config"
 	"github.com/nattergabriel/reseed/internal/github"
 	"github.com/nattergabriel/reseed/internal/library"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	installCmd.Flags().StringP("pack", "p", "", "create a pack with all installed skills")
+	installCmd.Flags().StringP("pack", "p", "", "install skills into a pack directory")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -29,7 +28,7 @@ Examples:
   reseed install user/repo/src/skills         # all skills under a directory
   reseed install user/repo@v2.0               # pin to a tag
   reseed install user/repo user2/repo2        # multiple sources at once
-  reseed install user/repo/src/skills -p kit  # install and create a pack`,
+  reseed install user/repo/src/skills -p kit  # install into a pack`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
@@ -39,7 +38,11 @@ Examples:
 
 		packName, _ := cmd.Flags().GetString("pack")
 		client := github.NewClient()
-		var packSkills []string // only used when packName != ""
+
+		destDir := lib.SkillsDir()
+		if packName != "" {
+			destDir = filepath.Join(lib.SkillsDir(), packName)
+		}
 
 		for _, arg := range args {
 			ref, err := github.ParseRef(arg)
@@ -62,7 +65,7 @@ Examples:
 				Title(fmt.Sprintf("  Fetching %s (%s)...", source, versionStr)).
 				ActionWithErr(func(ctx context.Context) error {
 					var ferr error
-					skills, ferr = client.FetchSkills(ctx, ref, lib.SkillsDir())
+					skills, ferr = client.FetchSkills(ctx, ref, destDir)
 					return ferr
 				}).
 				Run()
@@ -70,26 +73,9 @@ Examples:
 				return err
 			}
 
-			for _, skill := range skills {
-				lib.Config.Sources[skill.Name] = config.Source{
-					Source:  ref.SourceString(skill.Path),
-					Version: versionStr,
-				}
-				if packName != "" {
-					packSkills = append(packSkills, skill.Name)
-				}
-				fmt.Printf("  + %s\n", skill.Name)
+			for _, s := range skills {
+				fmt.Printf("  + %s\n", s.Name)
 			}
-		}
-
-		if packName != "" && len(packSkills) > 0 {
-			sort.Strings(packSkills)
-			lib.Config.Packs[packName] = packSkills
-			fmt.Printf("  Pack %q created with %d skills\n", packName, len(packSkills))
-		}
-
-		if err := lib.SaveConfig(); err != nil {
-			return err
 		}
 
 		return nil

@@ -44,12 +44,3 @@ func TestParseRef(t *testing.T) {
 		})
 	}
 }
-
-func TestSourceString(t *testing.T) {
-	ref := SkillRef{Owner: "user", Repo: "repo"}
-	got := ref.SourceString("src/skills/commit")
-	want := "user/repo/src/skills/commit"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}

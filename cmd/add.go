@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -71,7 +70,7 @@ func init() {
 type addItem struct {
 	name   string
 	isPack bool
-	count  int // number of skills in pack
+	count  int
 }
 
 func (i addItem) FilterValue() string {
@@ -82,29 +81,36 @@ func (i addItem) FilterValue() string {
 }
 
 func addInteractive(lib *library.Library) ([]string, error) {
-	available, err := lib.ListSkills()
+	entries, err := lib.ListSkillEntries()
 	if err != nil {
 		return nil, err
 	}
 
-	if len(available) == 0 && len(lib.Config.Packs) == 0 {
+	if len(entries) == 0 {
 		fmt.Println("No skills or packs in library.")
 		return nil, nil
 	}
 
-	var packNames []string
-	for name := range lib.Config.Packs {
-		packNames = append(packNames, name)
-	}
-	sort.Strings(packNames)
-
+	// Derive packs and standalone skills from entries
+	var packs []string
+	packCounts := make(map[string]int)
 	selected := make(map[int]bool)
 	var items []list.Item
-	for _, name := range packNames {
-		items = append(items, addItem{name: name, isPack: true, count: len(lib.Config.Packs[name])})
+	for _, e := range entries {
+		if e.Pack != "" {
+			if packCounts[e.Pack] == 0 {
+				packs = append(packs, e.Pack)
+			}
+			packCounts[e.Pack]++
+		}
 	}
-	for _, name := range available {
-		items = append(items, addItem{name: name})
+	for _, p := range packs {
+		items = append(items, addItem{name: p, isPack: true, count: packCounts[p]})
+	}
+	for _, e := range entries {
+		if e.Pack == "" {
+			items = append(items, addItem{name: e.Name})
+		}
 	}
 
 	delegate := checkboxDelegate{selected: selected}
@@ -130,6 +136,7 @@ func addInteractive(lib *library.Library) ([]string, error) {
 		return nil, nil
 	}
 
+	// Expand selected packs into skill names
 	seen := make(map[string]bool)
 	var chosen []string
 	for i, listItem := range final.list.Items() {
@@ -138,10 +145,10 @@ func addInteractive(lib *library.Library) ([]string, error) {
 		}
 		item := listItem.(addItem)
 		if item.isPack {
-			for _, s := range lib.Config.Packs[item.name] {
-				if !seen[s] {
-					seen[s] = true
-					chosen = append(chosen, s)
+			for _, e := range entries {
+				if e.Pack == item.name && !seen[e.Name] {
+					seen[e.Name] = true
+					chosen = append(chosen, e.Name)
 				}
 			}
 		} else {
@@ -154,4 +161,3 @@ func addInteractive(lib *library.Library) ([]string, error) {
 
 	return chosen, nil
 }
-

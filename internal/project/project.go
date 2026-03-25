@@ -49,8 +49,9 @@ func ListInstalled() ([]string, error) {
 }
 
 func AddSkill(lib *library.Library, skillName string) error {
-	if !lib.HasSkill(skillName) {
-		return fmt.Errorf("skill %q not found in library", skillName)
+	srcPath, err := lib.SkillPath(skillName)
+	if err != nil {
+		return err
 	}
 
 	projectDir, err := EnsureSkillsDir()
@@ -58,9 +59,8 @@ func AddSkill(lib *library.Library, skillName string) error {
 		return err
 	}
 
-	src := lib.SkillPath(skillName)
 	dst := filepath.Join(projectDir, skillName)
-	return skill.Copy(src, dst)
+	return skill.Copy(srcPath, dst)
 }
 
 func SyncSkills(lib *library.Library) ([]string, error) {
@@ -74,16 +74,28 @@ func SyncSkills(lib *library.Library) ([]string, error) {
 		return nil, err
 	}
 
+	entries, err := lib.ListSkillEntries()
+	if err != nil {
+		return nil, err
+	}
+	pathByName := make(map[string]string, len(entries))
+	for _, e := range entries {
+		if _, exists := pathByName[e.Name]; !exists {
+			pathByName[e.Name] = e.Path
+		}
+	}
+
 	var updated []string
 	for _, name := range installed {
-		if lib.HasSkill(name) {
-			src := lib.SkillPath(name)
-			dst := filepath.Join(projectDir, name)
-			if err := skill.Copy(src, dst); err != nil {
-				return updated, fmt.Errorf("syncing %s: %w", name, err)
-			}
-			updated = append(updated, name)
+		srcPath, ok := pathByName[name]
+		if !ok {
+			continue
 		}
+		dst := filepath.Join(projectDir, name)
+		if err := skill.Copy(srcPath, dst); err != nil {
+			return updated, fmt.Errorf("syncing %s: %w", name, err)
+		}
+		updated = append(updated, name)
 	}
 	return updated, nil
 }

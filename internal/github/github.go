@@ -38,6 +38,19 @@ type tag struct {
 	Name string `json:"name"`
 }
 
+func apiError(status int, repo string) error {
+	switch status {
+	case http.StatusNotFound:
+		return fmt.Errorf("repository %s not found (or is private)", repo)
+	case http.StatusForbidden:
+		return fmt.Errorf("GitHub API rate limit exceeded for %s - set GITHUB_TOKEN to authenticate", repo)
+	case http.StatusUnauthorized:
+		return fmt.Errorf("GitHub authentication failed for %s - check your GITHUB_TOKEN", repo)
+	default:
+		return fmt.Errorf("GitHub API error for %s: HTTP %d", repo, status)
+	}
+}
+
 // ResolveVersion resolves "latest" or empty version to the most recent tag.
 func (c *Client) ResolveVersion(ctx context.Context, owner, repo, version string) (string, error) {
 	if version != "" && version != VersionLatest {
@@ -57,7 +70,7 @@ func (c *Client) ResolveVersion(ctx context.Context, owner, repo, version string
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("fetching tags for %s/%s: HTTP %d", owner, repo, resp.StatusCode)
+		return "", apiError(resp.StatusCode, fmt.Sprintf("%s/%s", owner, repo))
 	}
 
 	var tags []tag
@@ -105,7 +118,7 @@ func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string)
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("downloading %s/%s: HTTP %d", ref.Owner, ref.Repo, resp.StatusCode)
+		return nil, apiError(resp.StatusCode, fmt.Sprintf("%s/%s", ref.Owner, ref.Repo))
 	}
 
 	return extractSkills(resp.Body, destDir, ref.Path)
