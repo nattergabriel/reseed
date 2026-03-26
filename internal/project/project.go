@@ -63,6 +63,18 @@ func AddSkill(lib *library.Library, skillName string) error {
 	return skill.Copy(srcPath, dst)
 }
 
+func RemoveSkill(skillName string) error {
+	projectDir, err := SkillsPath()
+	if err != nil {
+		return err
+	}
+	dst := filepath.Join(projectDir, skillName)
+	if err := os.RemoveAll(dst); err != nil {
+		return fmt.Errorf("removing %s: %w", skillName, err)
+	}
+	return nil
+}
+
 func SyncSkills(lib *library.Library) ([]string, error) {
 	projectDir, err := SkillsPath()
 	if err != nil {

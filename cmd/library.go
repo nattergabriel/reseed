@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nattergabriel/reseed/internal/library"
+	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/skill"
 	"github.com/spf13/cobra"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,7 +19,7 @@ func init() {
 
 var libraryCmd = &cobra.Command{
 	Use:     "library",
-	Short:   "List all skills in your library",
+	Short:   "Browse and manage your skill library",
 	GroupID: groupLibrary,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
@@ -35,52 +37,103 @@ var libraryCmd = &cobra.Command{
 			return nil
 		}
 
-		// Group entries into rows: standalone skills and packs
-		var rows []libraryRow
-		var currentPack string
-		var packSkills []string
+		rows := buildRows(entries)
 
-		flushPack := func() {
-			if currentPack != "" {
-				rows = append(rows, libraryRow{name: currentPack, isPack: true, skills: packSkills})
-				currentPack = ""
-				packSkills = nil
+		installed := make(map[string]bool)
+		if names, err := project.ListInstalled(); err == nil {
+			for _, n := range names {
+				installed[n] = true
 			}
 		}
 
-		for _, e := range entries {
-			if e.Pack == "" {
-				flushPack()
-				rows = append(rows, libraryRow{name: e.Name})
-			} else {
-				if e.Pack != currentPack {
-					flushPack()
-					currentPack = e.Pack
-				}
-				packSkills = append(packSkills, e.Name)
-			}
+		m := libraryModel{
+			rows:      rows,
+			lib:       lib,
+			installed: installed,
 		}
-		flushPack()
-
-		m := libraryModel{rows: rows}
 		p := tea.NewProgram(m, tea.WithAltScreen())
 		_, err = p.Run()
 		return err
 	},
 }
 
+func buildRows(entries []skill.SkillEntry) []libraryRow {
+	var rows []libraryRow
+	var currentPack string
+	var packSkills []string
+
+	flushPack := func() {
+		if currentPack != "" {
+			rows = append(rows, libraryRow{name: currentPack, isPack: true, skills: packSkills})
+			currentPack = ""
+			packSkills = nil
+		}
+	}
+
+	for _, e := range entries {
+		if e.Pack == "" {
+			flushPack()
+			rows = append(rows, libraryRow{name: e.Name})
+		} else {
+			if e.Pack != currentPack {
+				flushPack()
+				currentPack = e.Pack
+			}
+			packSkills = append(packSkills, e.Name)
+		}
+	}
+	flushPack()
+	return rows
+}
+
+// libraryRow is either a standalone skill or a pack header with nested skills.
 type libraryRow struct {
 	name     string
 	isPack   bool
-	skills   []string // only for packs
+	skills   []string
 	expanded bool
 }
 
+// visibleItem is a flattened entry the cursor can land on.
+type visibleItem struct {
+	name     string
+	isPack   bool
+	isNested bool
+	packName string
+	rowIdx   int
+}
+
 type libraryModel struct {
-	rows   []libraryRow
-	cursor int
-	height int
-	offset int
+	rows      []libraryRow
+	cursor    int
+	height    int
+	offset    int
+	lib       *library.Library
+	installed map[string]bool
+	status    string
+	statusErr bool
+}
+
+func (m libraryModel) visibleItems() []visibleItem {
+	var items []visibleItem
+	for i, r := range m.rows {
+		items = append(items, visibleItem{
+			name:   r.name,
+			isPack: r.isPack,
+			rowIdx: i,
+		})
+		if r.isPack && r.expanded {
+			for _, s := range r.skills {
+				items = append(items, visibleItem{
+					name:     s,
+					isNested: true,
+					packName: r.name,
+					rowIdx:   i,
+				})
+			}
+		}
+	}
+	return items
 }
 
 func (m libraryModel) Init() tea.Cmd {
@@ -93,6 +146,10 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.clampOffset()
 	case tea.KeyMsg:
+		m.status = ""
+		m.statusErr = false
+
+		visible := m.visibleItems()
 		switch msg.String() {
 		case "up", "k":
 			if m.cursor > 0 {
@@ -100,15 +157,23 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.clampOffset()
 			}
 		case "down", "j":
-			if m.cursor < len(m.rows)-1 {
+			if m.cursor < len(visible)-1 {
 				m.cursor++
 				m.clampOffset()
 			}
 		case "enter", " ":
-			if m.rows[m.cursor].isPack {
-				m.rows[m.cursor].expanded = !m.rows[m.cursor].expanded
+			item := visible[m.cursor]
+			if item.isPack {
+				m.rows[item.rowIdx].expanded = !m.rows[item.rowIdx].expanded
+				// If collapsing, clamp cursor to pack header
+				if !m.rows[item.rowIdx].expanded {
+					m.cursor = m.indexOfRow(item.rowIdx)
+				}
 				m.clampOffset()
 			}
+		case "a":
+			m.toggleCurrent()
+			m.clampOffset()
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		}
@@ -116,33 +181,100 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// cursorLine returns the line index of the current cursor row.
-func (m libraryModel) cursorLine() int {
-	line := 0
+// indexOfRow returns the visible item index for a given row index.
+func (m libraryModel) indexOfRow(rowIdx int) int {
+	idx := 0
 	for i, r := range m.rows {
-		if i == m.cursor {
-			return line
+		if i == rowIdx {
+			return idx
 		}
-		line++
+		idx++
 		if r.isPack && r.expanded {
-			line += len(r.skills)
+			idx += len(r.skills)
 		}
 	}
-	return line
+	return idx
+}
+
+func (m *libraryModel) toggleCurrent() {
+	visible := m.visibleItems()
+	item := visible[m.cursor]
+
+	if item.isPack {
+		row := m.rows[item.rowIdx]
+		// If all installed, remove all. Otherwise, add all missing.
+		allInstalled := true
+		for _, s := range row.skills {
+			if !m.installed[s] {
+				allInstalled = false
+				break
+			}
+		}
+		if allInstalled {
+			for _, skillName := range row.skills {
+				if err := project.RemoveSkill(skillName); err != nil {
+					m.status = fmt.Sprintf("Error removing %s: %s", skillName, err)
+					m.statusErr = true
+					return
+				}
+				delete(m.installed, skillName)
+			}
+			m.status = fmt.Sprintf("Removed %d %s from %s", len(row.skills), skillNoun(len(row.skills)), item.name)
+		} else {
+			var added int
+			for _, skillName := range row.skills {
+				if m.installed[skillName] {
+					continue
+				}
+				if err := project.AddSkill(m.lib, skillName); err != nil {
+					m.status = fmt.Sprintf("Error adding %s: %s", skillName, err)
+					m.statusErr = true
+					return
+				}
+				m.installed[skillName] = true
+				added++
+			}
+			m.status = fmt.Sprintf("Added %d %s from %s", added, skillNoun(added), item.name)
+		}
+	} else {
+		skillName := item.name
+		if m.installed[skillName] {
+			if err := project.RemoveSkill(skillName); err != nil {
+				m.status = err.Error()
+				m.statusErr = true
+				return
+			}
+			delete(m.installed, skillName)
+			m.status = fmt.Sprintf("Removed %s", skillName)
+		} else {
+			if err := project.AddSkill(m.lib, skillName); err != nil {
+				m.status = err.Error()
+				m.statusErr = true
+				return
+			}
+			m.installed[skillName] = true
+			m.status = fmt.Sprintf("Added %s", skillName)
+		}
+	}
 }
 
 func (m *libraryModel) clampOffset() {
-	available := m.height - 3 // header + blank + footer
+	available := m.viewHeight()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+available {
+		m.offset = m.cursor - available + 1
+	}
+}
+
+func (m libraryModel) viewHeight() int {
+	// header + blank line + blank line + status/blank + footer
+	available := m.height - 5
 	if available < 1 {
 		available = 1
 	}
-	cl := m.cursorLine()
-	if cl < m.offset {
-		m.offset = cl
-	}
-	if cl >= m.offset+available {
-		m.offset = cl - available + 1
-	}
+	return available
 }
 
 var (
@@ -151,41 +283,71 @@ var (
 	styleSkill     = lipgloss.NewStyle()
 	styleCursor    = lipgloss.NewStyle().Bold(true)
 	styleNested    = lipgloss.NewStyle().Faint(true)
+	styleInstalled = lipgloss.NewStyle().Faint(true)
+	styleCheck     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styleStatus    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styleStatusErr = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styleFooter    = lipgloss.NewStyle().Faint(true)
 )
 
-func (m libraryModel) View() string {
-	available := m.height - 3
-	if available < 1 {
-		available = 1
+func (m libraryModel) packCountInfo(row libraryRow) string {
+	total := len(row.skills)
+	var count int
+	for _, s := range row.skills {
+		if m.installed[s] {
+			count++
+		}
 	}
+	if count == 0 {
+		return fmt.Sprintf("(%d %s)", total, skillNoun(total))
+	}
+	return fmt.Sprintf("(%d/%d added)", count, total)
+}
+
+func (m libraryModel) View() string {
+	available := m.viewHeight()
+	visible := m.visibleItems()
 
 	var lines []string
-	for i, r := range m.rows {
+	for i, item := range visible {
 		cursor := "  "
 		if i == m.cursor {
 			cursor = styleCursor.Render("> ")
 		}
 
-		if r.isPack {
+		if item.isPack {
+			row := m.rows[item.rowIdx]
 			arrow := ">"
-			if r.expanded {
+			if row.expanded {
 				arrow = "v"
 			}
 			line := fmt.Sprintf("%s%s %s %s",
 				cursor,
 				stylePackCount.Render(arrow),
-				stylePack.Render(r.name),
-				stylePackCount.Render(fmt.Sprintf("(%d skills)", len(r.skills))),
+				stylePack.Render(item.name),
+				stylePackCount.Render(m.packCountInfo(row)),
 			)
 			lines = append(lines, line)
-
-			if r.expanded {
-				for _, s := range r.skills {
-					lines = append(lines, fmt.Sprintf("      %s", styleNested.Render(s)))
-				}
+		} else if item.isNested {
+			cursor := "    "
+			if i == m.cursor {
+				cursor = styleCursor.Render("  > ")
 			}
+			check := "  "
+			nameStyle := styleNested
+			if m.installed[item.name] {
+				check = styleCheck.Render("* ")
+				nameStyle = styleInstalled
+			}
+			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
 		} else {
-			lines = append(lines, fmt.Sprintf("%s%s", cursor, styleSkill.Render(r.name)))
+			check := "  "
+			nameStyle := styleSkill
+			if m.installed[item.name] {
+				check = styleCheck.Render("* ")
+				nameStyle = styleInstalled
+			}
+			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
 		}
 	}
 
@@ -194,11 +356,26 @@ func (m libraryModel) View() string {
 	if end > len(lines) {
 		end = len(lines)
 	}
-	visible := lines[m.offset:end]
+	start := m.offset
+	if start > len(lines) {
+		start = len(lines)
+	}
+	viewLines := lines[start:end]
 
 	var s strings.Builder
-	s.WriteString("Library\n\n")
-	s.WriteString(strings.Join(visible, "\n"))
-	s.WriteString("\n\nq: quit  enter: expand/collapse")
+	s.WriteString(stylePack.Render("Library"))
+	s.WriteString("\n\n")
+	s.WriteString(strings.Join(viewLines, "\n"))
+	s.WriteString("\n\n")
+	if m.status != "" {
+		st := styleStatus
+		if m.statusErr {
+			st = styleStatusErr
+		}
+		s.WriteString(st.Render(m.status))
+	}
+	s.WriteString("\n")
+	s.WriteString(styleFooter.Render("q: quit  enter: expand/collapse  a: toggle"))
+
 	return s.String()
 }
