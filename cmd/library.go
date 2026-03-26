@@ -31,11 +31,9 @@ func runLibrary(cmd *cobra.Command, args []string) error {
 
 	skills, packs := buildSkillsAndPacks(entries)
 
-	installed := make(map[string]bool)
-	if names, err := project.ListInstalled(); err == nil {
-		for _, n := range names {
-			installed[n] = true
-		}
+	installed, _ := project.InstalledSet()
+	if installed == nil {
+		installed = make(map[string]bool)
 	}
 
 	// Default to packs tab if there are no standalone skills
@@ -332,29 +330,29 @@ func (m libraryModel) viewHeight() int {
 func (m libraryModel) contextualAction() string {
 	if m.tab == tabSkills {
 		if len(m.skills) == 0 {
-			return "a: add"
+			return "add"
 		}
 		if m.installed[m.skills[m.skillsCursor]] {
-			return "a: remove"
+			return "remove"
 		}
-		return "a: add"
+		return "add"
 	}
 
 	items := m.packVisibleItems()
 	if len(items) == 0 {
-		return "a: add"
+		return "add"
 	}
 	item := items[m.packsCursor]
 	if item.isPack {
 		if m.isPackFullyInstalled(m.packs[item.packIdx]) {
-			return "a: remove"
+			return "remove"
 		}
-		return "a: add"
+		return "add"
 	}
 	if m.installed[item.name] {
-		return "a: remove"
+		return "remove"
 	}
-	return "a: add"
+	return "add"
 }
 
 var (

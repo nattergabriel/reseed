@@ -48,6 +48,18 @@ func ListInstalled() ([]string, error) {
 	return skill.List(path)
 }
 
+func InstalledSet() (map[string]bool, error) {
+	names, err := ListInstalled()
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		set[n] = true
+	}
+	return set, nil
+}
+
 func AddSkill(lib *library.Library, skillName string) error {
 	srcPath, err := lib.SkillPath(skillName)
 	if err != nil {
