@@ -37,6 +37,7 @@ var syncCmd = &cobra.Command{
 			fmt.Printf("  ~ %s\n", name)
 		}
 
+		printSummary("Synced", len(updated))
 		return nil
 	},
 }

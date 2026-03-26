@@ -44,6 +44,7 @@ Examples:
 			destDir = filepath.Join(lib.SkillsDir(), packName)
 		}
 
+		var total int
 		for _, arg := range args {
 			ref, err := github.ParseRef(arg)
 			if err != nil {
@@ -76,8 +77,10 @@ Examples:
 			for _, s := range skills {
 				fmt.Printf("  + %s\n", s.Name)
 			}
+			total += len(skills)
 		}
 
+		printSummary("Installed", total)
 		return nil
 	},
 }

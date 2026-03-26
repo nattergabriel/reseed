@@ -34,7 +34,7 @@ var initCmd = &cobra.Command{
 
 		fmt.Printf("Library initialized at %s\n", lib.Path)
 		if len(skills) > 0 {
-			fmt.Printf("Found %d existing skill(s):\n", len(skills))
+			fmt.Printf("Found %d existing %s:\n", len(skills), skillNoun(len(skills)))
 			for _, s := range skills {
 				fmt.Printf("  %s\n", s)
 			}

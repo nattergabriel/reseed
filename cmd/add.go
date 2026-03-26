@@ -58,6 +58,7 @@ var addCmd = &cobra.Command{
 			fmt.Printf("  + %s\n", name)
 		}
 
+		printSummary("Added", len(skills))
 		return nil
 	},
 }
