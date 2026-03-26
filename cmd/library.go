@@ -318,8 +318,10 @@ func (m *libraryModel) clampOffset() {
 }
 
 func (m libraryModel) viewHeight() int {
-	// tab header + separator + blank + blank + status/blank + footer
-	available := m.height - 6
+	header := m.renderHeader()
+	footer := m.renderFooter()
+	chrome := lipgloss.Height(header) + lipgloss.Height(footer) + 2
+	available := m.height - chrome
 	if available < 1 {
 		available = 1
 	}
@@ -385,12 +387,7 @@ func (m libraryModel) packCountInfo(pack libraryPack) string {
 	return fmt.Sprintf("(%d/%d added)", count, total)
 }
 
-func (m libraryModel) View() string {
-	available := m.viewHeight()
-
-	var s strings.Builder
-
-	// Tab header
+func (m libraryModel) renderHeader() string {
 	skillsLabel := "Skills"
 	packsLabel := "Packs"
 	if m.tab == tabSkills {
@@ -400,11 +397,36 @@ func (m libraryModel) View() string {
 		skillsLabel = styleTab.Render(skillsLabel)
 		packsLabel = styleActiveTab.Render(packsLabel)
 	}
-	fmt.Fprintf(&s, "  %s    %s\n", skillsLabel, packsLabel)
-	s.WriteString(styleSeparator.Render("  ────────────────"))
-	s.WriteString("\n\n")
+	return fmt.Sprintf("  %s    %s\n%s", skillsLabel, packsLabel, styleSeparator.Render("  ────────────────"))
+}
 
-	// Content
+func (m libraryModel) renderStatus() string {
+	if m.status == "" {
+		return ""
+	}
+	st := styleStatus
+	if m.statusErr {
+		st = styleStatusErr
+	}
+	return st.Render(m.status)
+}
+
+func (m libraryModel) View() string {
+	header := m.renderHeader()
+	status := m.renderStatus()
+	footer := m.renderFooter()
+
+	// Measure chrome to calculate content area height
+	chrome := lipgloss.Height(header) + lipgloss.Height(footer) + 2 // 2 for blank lines
+	if status != "" {
+		chrome++
+	}
+	available := m.height - chrome
+	if available < 1 {
+		available = 1
+	}
+
+	// Render visible content lines
 	var lines []string
 	var offset int
 	if m.tab == tabSkills {
@@ -423,29 +445,18 @@ func (m libraryModel) View() string {
 	if start > len(lines) {
 		start = len(lines)
 	}
-	visibleLines := lines[start:end]
-	s.WriteString(strings.Join(visibleLines, "\n"))
 
-	// Pad remaining space so footer stays at the bottom
-	padding := available - len(visibleLines)
-	for range padding {
-		s.WriteString("\n")
+	content := strings.Join(lines[start:end], "\n")
+	// Pad content to fill available height so footer pins to bottom
+	contentBlock := lipgloss.NewStyle().Height(available).Render(content)
+
+	// Build bottom section
+	bottom := footer
+	if status != "" {
+		bottom = status + "\n" + footer
 	}
 
-	// Status + footer
-	s.WriteString("\n")
-	if m.status != "" {
-		st := styleStatus
-		if m.statusErr {
-			st = styleStatusErr
-		}
-		s.WriteString(st.Render(m.status))
-	}
-	s.WriteString("\n")
-
-	s.WriteString(m.renderFooter())
-
-	return s.String()
+	return lipgloss.JoinVertical(lipgloss.Left, header, "", contentBlock, bottom)
 }
 
 func (m libraryModel) renderSkills() []string {
