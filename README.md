@@ -75,6 +75,14 @@ reseed status  # show skills installed in the project
 
 For the full walkthrough, see the [quickstart guide](https://reseed.mintlify.app/quickstart). Browse the [docs](https://reseed.mintlify.app) for details on every command.
 
+### LLM integration
+
+This repo includes a skill that teaches LLMs how to use reseed. Install it and your agent can manage skills on your behalf, like finding and installing skills that fit your project:
+
+```bash
+reseed install nattergabriel/reseed/skills
+```
+
 ## Contributing
 
 Requires Go 1.24+ and [golangci-lint](https://golangci-lint.run/). Run `make setup` to enable pre-commit hooks.
