@@ -13,58 +13,58 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func init() {
-	rootCmd.AddCommand(libraryCmd)
-}
-
-var libraryCmd = &cobra.Command{
-	Use:     "library",
-	Short:   "Browse and manage your skill library",
-	GroupID: groupLibrary,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Open()
-		if err != nil {
-			return err
-		}
-
-		entries, err := lib.ListSkillEntries()
-		if err != nil {
-			return err
-		}
-
-		if len(entries) == 0 {
-			fmt.Println("No skills in library.")
-			return nil
-		}
-
-		rows := buildRows(entries)
-
-		installed := make(map[string]bool)
-		if names, err := project.ListInstalled(); err == nil {
-			for _, n := range names {
-				installed[n] = true
-			}
-		}
-
-		m := libraryModel{
-			rows:      rows,
-			lib:       lib,
-			installed: installed,
-		}
-		p := tea.NewProgram(m, tea.WithAltScreen())
-		_, err = p.Run()
+func runLibrary(cmd *cobra.Command, args []string) error {
+	lib, err := library.Open()
+	if err != nil {
 		return err
-	},
+	}
+
+	entries, err := lib.ListSkillEntries()
+	if err != nil {
+		return err
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("No skills in library.")
+		return nil
+	}
+
+	skills, packs := buildSkillsAndPacks(entries)
+
+	installed := make(map[string]bool)
+	if names, err := project.ListInstalled(); err == nil {
+		for _, n := range names {
+			installed[n] = true
+		}
+	}
+
+	// Default to packs tab if there are no standalone skills
+	startTab := tabSkills
+	if len(skills) == 0 {
+		startTab = tabPacks
+	}
+
+	m := libraryModel{
+		skills:    skills,
+		packs:     packs,
+		tab:       startTab,
+		lib:       lib,
+		installed: installed,
+	}
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	_, err = p.Run()
+	return err
 }
 
-func buildRows(entries []skill.SkillEntry) []libraryRow {
-	var rows []libraryRow
+func buildSkillsAndPacks(entries []skill.SkillEntry) ([]string, []libraryPack) {
+	var skills []string
+	var packs []libraryPack
 	var currentPack string
 	var packSkills []string
 
 	flushPack := func() {
 		if currentPack != "" {
-			rows = append(rows, libraryRow{name: currentPack, isPack: true, skills: packSkills})
+			packs = append(packs, libraryPack{name: currentPack, skills: packSkills})
 			currentPack = ""
 			packSkills = nil
 		}
@@ -73,7 +73,7 @@ func buildRows(entries []skill.SkillEntry) []libraryRow {
 	for _, e := range entries {
 		if e.Pack == "" {
 			flushPack()
-			rows = append(rows, libraryRow{name: e.Name})
+			skills = append(skills, e.Name)
 		} else {
 			if e.Pack != currentPack {
 				flushPack()
@@ -83,53 +83,54 @@ func buildRows(entries []skill.SkillEntry) []libraryRow {
 		}
 	}
 	flushPack()
-	return rows
+	return skills, packs
 }
 
-// libraryRow is either a standalone skill or a pack header with nested skills.
-type libraryRow struct {
+type tab int
+
+const (
+	tabSkills tab = iota
+	tabPacks
+)
+
+type libraryPack struct {
 	name     string
-	isPack   bool
 	skills   []string
 	expanded bool
 }
 
-// visibleItem is a flattened entry the cursor can land on.
+// visibleItem is a flattened entry the cursor can land on in the packs tab.
 type visibleItem struct {
-	name     string
-	isPack   bool
-	isNested bool
-	packName string
-	rowIdx   int
+	name    string
+	isPack  bool
+	packIdx int // index into m.packs
 }
 
 type libraryModel struct {
-	rows      []libraryRow
-	cursor    int
+	skills []string
+	packs  []libraryPack
+
+	tab tab
+
+	skillsCursor int
+	skillsOffset int
+	packsCursor  int
+	packsOffset  int
+
 	height    int
-	offset    int
 	lib       *library.Library
 	installed map[string]bool
 	status    string
 	statusErr bool
 }
 
-func (m libraryModel) visibleItems() []visibleItem {
+func (m libraryModel) packVisibleItems() []visibleItem {
 	var items []visibleItem
-	for i, r := range m.rows {
-		items = append(items, visibleItem{
-			name:   r.name,
-			isPack: r.isPack,
-			rowIdx: i,
-		})
-		if r.isPack && r.expanded {
-			for _, s := range r.skills {
-				items = append(items, visibleItem{
-					name:     s,
-					isNested: true,
-					packName: r.name,
-					rowIdx:   i,
-				})
+	for i, p := range m.packs {
+		items = append(items, visibleItem{name: p.name, isPack: true, packIdx: i})
+		if p.expanded {
+			for _, s := range p.skills {
+				items = append(items, visibleItem{name: s, packIdx: i})
 			}
 		}
 	}
@@ -149,127 +150,177 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = ""
 		m.statusErr = false
 
-		visible := m.visibleItems()
 		switch msg.String() {
+		case "left", "right", "tab":
+			if m.tab == tabSkills && len(m.packs) > 0 {
+				m.tab = tabPacks
+			} else if m.tab == tabPacks && len(m.skills) > 0 {
+				m.tab = tabSkills
+			}
+			m.clampOffset()
 		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-				m.clampOffset()
-			}
+			m.moveCursor(-1)
 		case "down", "j":
-			if m.cursor < len(visible)-1 {
-				m.cursor++
-				m.clampOffset()
-			}
-		case "enter", " ":
-			item := visible[m.cursor]
-			if item.isPack {
-				m.rows[item.rowIdx].expanded = !m.rows[item.rowIdx].expanded
-				// If collapsing, clamp cursor to pack header
-				if !m.rows[item.rowIdx].expanded {
-					m.cursor = m.indexOfRow(item.rowIdx)
+			m.moveCursor(1)
+		case "enter":
+			if m.tab == tabPacks {
+				items := m.packVisibleItems()
+				if len(items) > 0 {
+					item := items[m.packsCursor]
+					if item.isPack {
+						m.packs[item.packIdx].expanded = !m.packs[item.packIdx].expanded
+						if !m.packs[item.packIdx].expanded {
+							m.packsCursor = m.packIndexOf(item.packIdx)
+						}
+						m.clampOffset()
+					} else {
+						m.toggleCurrent()
+						m.clampOffset()
+					}
 				}
+			} else {
+				m.toggleCurrent()
 				m.clampOffset()
 			}
-		case "a":
+		case " ":
 			m.toggleCurrent()
 			m.clampOffset()
-		case "q", "esc", "ctrl+c":
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
 	return m, nil
 }
 
-// indexOfRow returns the visible item index for a given row index.
-func (m libraryModel) indexOfRow(rowIdx int) int {
+func (m *libraryModel) moveCursor(dir int) {
+	if m.tab == tabSkills {
+		next := m.skillsCursor + dir
+		if next >= 0 && next < len(m.skills) {
+			m.skillsCursor = next
+			m.clampOffset()
+		}
+	} else {
+		items := m.packVisibleItems()
+		next := m.packsCursor + dir
+		if next >= 0 && next < len(items) {
+			m.packsCursor = next
+			m.clampOffset()
+		}
+	}
+}
+
+// packIndexOf returns the visible item index for a given pack index.
+func (m libraryModel) packIndexOf(packIdx int) int {
 	idx := 0
-	for i, r := range m.rows {
-		if i == rowIdx {
+	for i, p := range m.packs {
+		if i == packIdx {
 			return idx
 		}
 		idx++
-		if r.isPack && r.expanded {
-			idx += len(r.skills)
+		if p.expanded {
+			idx += len(p.skills)
 		}
 	}
 	return idx
 }
 
 func (m *libraryModel) toggleCurrent() {
-	visible := m.visibleItems()
-	item := visible[m.cursor]
-
-	if item.isPack {
-		row := m.rows[item.rowIdx]
-		// If all installed, remove all. Otherwise, add all missing.
-		allInstalled := true
-		for _, s := range row.skills {
-			if !m.installed[s] {
-				allInstalled = false
-				break
-			}
+	if m.tab == tabSkills {
+		if len(m.skills) == 0 {
+			return
 		}
-		if allInstalled {
-			for _, skillName := range row.skills {
-				if err := project.RemoveSkill(skillName); err != nil {
-					m.status = fmt.Sprintf("Error removing %s: %s", skillName, err)
-					m.statusErr = true
-					return
-				}
-				delete(m.installed, skillName)
-			}
-			m.status = fmt.Sprintf("Removed %d %s from %s", len(row.skills), skillNoun(len(row.skills)), item.name)
-		} else {
-			var added int
-			for _, skillName := range row.skills {
-				if m.installed[skillName] {
-					continue
-				}
-				if err := project.AddSkill(m.lib, skillName); err != nil {
-					m.status = fmt.Sprintf("Error adding %s: %s", skillName, err)
-					m.statusErr = true
-					return
-				}
-				m.installed[skillName] = true
-				added++
-			}
-			m.status = fmt.Sprintf("Added %d %s from %s", added, skillNoun(added), item.name)
-		}
+		m.toggleSkill(m.skills[m.skillsCursor])
 	} else {
-		skillName := item.name
-		if m.installed[skillName] {
-			if err := project.RemoveSkill(skillName); err != nil {
-				m.status = err.Error()
-				m.statusErr = true
-				return
+		items := m.packVisibleItems()
+		if len(items) == 0 {
+			return
+		}
+		item := items[m.packsCursor]
+
+		if item.isPack {
+			pack := m.packs[item.packIdx]
+			if m.isPackFullyInstalled(pack) {
+				for _, skillName := range pack.skills {
+					if err := project.RemoveSkill(skillName); err != nil {
+						m.status = fmt.Sprintf("Error removing %s: %s", skillName, err)
+						m.statusErr = true
+						return
+					}
+					delete(m.installed, skillName)
+				}
+				m.status = fmt.Sprintf("Removed %d %s from %s", len(pack.skills), skillNoun(len(pack.skills)), item.name)
+			} else {
+				var added int
+				for _, skillName := range pack.skills {
+					if m.installed[skillName] {
+						continue
+					}
+					if err := project.AddSkill(m.lib, skillName); err != nil {
+						m.status = fmt.Sprintf("Error adding %s: %s", skillName, err)
+						m.statusErr = true
+						return
+					}
+					m.installed[skillName] = true
+					added++
+				}
+				m.status = fmt.Sprintf("Added %d %s from %s", added, skillNoun(added), item.name)
 			}
-			delete(m.installed, skillName)
-			m.status = fmt.Sprintf("Removed %s", skillName)
 		} else {
-			if err := project.AddSkill(m.lib, skillName); err != nil {
-				m.status = err.Error()
-				m.statusErr = true
-				return
-			}
-			m.installed[skillName] = true
-			m.status = fmt.Sprintf("Added %s", skillName)
+			m.toggleSkill(item.name)
 		}
 	}
+}
+
+func (m *libraryModel) toggleSkill(name string) {
+	if m.installed[name] {
+		if err := project.RemoveSkill(name); err != nil {
+			m.status = err.Error()
+			m.statusErr = true
+			return
+		}
+		delete(m.installed, name)
+		m.status = fmt.Sprintf("Removed %s", name)
+	} else {
+		if err := project.AddSkill(m.lib, name); err != nil {
+			m.status = err.Error()
+			m.statusErr = true
+			return
+		}
+		m.installed[name] = true
+		m.status = fmt.Sprintf("Added %s", name)
+	}
+}
+
+func (m libraryModel) isPackFullyInstalled(pack libraryPack) bool {
+	for _, s := range pack.skills {
+		if !m.installed[s] {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *libraryModel) clampOffset() {
 	available := m.viewHeight()
-	if m.cursor < m.offset {
-		m.offset = m.cursor
-	}
-	if m.cursor >= m.offset+available {
-		m.offset = m.cursor - available + 1
+	if m.tab == tabSkills {
+		if m.skillsCursor < m.skillsOffset {
+			m.skillsOffset = m.skillsCursor
+		}
+		if m.skillsCursor >= m.skillsOffset+available {
+			m.skillsOffset = m.skillsCursor - available + 1
+		}
+	} else {
+		if m.packsCursor < m.packsOffset {
+			m.packsOffset = m.packsCursor
+		}
+		if m.packsCursor >= m.packsOffset+available {
+			m.packsOffset = m.packsCursor - available + 1
+		}
 	}
 }
 
 func (m libraryModel) viewHeight() int {
-	// header + blank line + blank line + status/blank + footer
+	// tab header + blank + blank + status/blank + footer
 	available := m.height - 5
 	if available < 1 {
 		available = 1
@@ -277,23 +328,53 @@ func (m libraryModel) viewHeight() int {
 	return available
 }
 
+// contextualAction returns the label for the "a" key based on cursor state.
+func (m libraryModel) contextualAction() string {
+	if m.tab == tabSkills {
+		if len(m.skills) == 0 {
+			return "a: add"
+		}
+		if m.installed[m.skills[m.skillsCursor]] {
+			return "a: remove"
+		}
+		return "a: add"
+	}
+
+	items := m.packVisibleItems()
+	if len(items) == 0 {
+		return "a: add"
+	}
+	item := items[m.packsCursor]
+	if item.isPack {
+		if m.isPackFullyInstalled(m.packs[item.packIdx]) {
+			return "a: remove"
+		}
+		return "a: add"
+	}
+	if m.installed[item.name] {
+		return "a: remove"
+	}
+	return "a: add"
+}
+
 var (
 	stylePack      = lipgloss.NewStyle().Bold(true)
 	stylePackCount = lipgloss.NewStyle().Faint(true)
 	styleSkill     = lipgloss.NewStyle()
 	styleCursor    = lipgloss.NewStyle().Bold(true)
-	styleNested    = lipgloss.NewStyle().Faint(true)
 	styleInstalled = lipgloss.NewStyle().Faint(true)
 	styleCheck     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	styleStatus    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	styleStatusErr = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	styleFooter    = lipgloss.NewStyle().Faint(true)
+	styleActiveTab = lipgloss.NewStyle().Bold(true).Underline(true)
+	styleTab       = lipgloss.NewStyle().Faint(true)
 )
 
-func (m libraryModel) packCountInfo(row libraryRow) string {
-	total := len(row.skills)
+func (m libraryModel) packCountInfo(pack libraryPack) string {
+	total := len(pack.skills)
 	var count int
-	for _, s := range row.skills {
+	for _, s := range pack.skills {
 		if m.installed[s] {
 			count++
 		}
@@ -306,66 +387,44 @@ func (m libraryModel) packCountInfo(row libraryRow) string {
 
 func (m libraryModel) View() string {
 	available := m.viewHeight()
-	visible := m.visibleItems()
 
+	var s strings.Builder
+
+	// Tab header
+	skillsLabel := "Skills"
+	packsLabel := "Packs"
+	if m.tab == tabSkills {
+		skillsLabel = styleActiveTab.Render(skillsLabel)
+		packsLabel = styleTab.Render(packsLabel)
+	} else {
+		skillsLabel = styleTab.Render(skillsLabel)
+		packsLabel = styleActiveTab.Render(packsLabel)
+	}
+	fmt.Fprintf(&s, "  %s    %s", skillsLabel, packsLabel)
+	s.WriteString("\n\n")
+
+	// Content
 	var lines []string
-	for i, item := range visible {
-		cursor := "  "
-		if i == m.cursor {
-			cursor = styleCursor.Render("> ")
-		}
-
-		if item.isPack {
-			row := m.rows[item.rowIdx]
-			arrow := ">"
-			if row.expanded {
-				arrow = "v"
-			}
-			line := fmt.Sprintf("%s%s %s %s",
-				cursor,
-				stylePackCount.Render(arrow),
-				stylePack.Render(item.name),
-				stylePackCount.Render(m.packCountInfo(row)),
-			)
-			lines = append(lines, line)
-		} else if item.isNested {
-			cursor := "    "
-			if i == m.cursor {
-				cursor = styleCursor.Render("  > ")
-			}
-			check := "  "
-			nameStyle := styleNested
-			if m.installed[item.name] {
-				check = styleCheck.Render("* ")
-				nameStyle = styleInstalled
-			}
-			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
-		} else {
-			check := "  "
-			nameStyle := styleSkill
-			if m.installed[item.name] {
-				check = styleCheck.Render("* ")
-				nameStyle = styleInstalled
-			}
-			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
-		}
+	var offset int
+	if m.tab == tabSkills {
+		lines = m.renderSkills()
+		offset = m.skillsOffset
+	} else {
+		lines = m.renderPacks()
+		offset = m.packsOffset
 	}
 
-	// Apply viewport
-	end := m.offset + available
+	end := offset + available
 	if end > len(lines) {
 		end = len(lines)
 	}
-	start := m.offset
+	start := offset
 	if start > len(lines) {
 		start = len(lines)
 	}
-	viewLines := lines[start:end]
+	s.WriteString(strings.Join(lines[start:end], "\n"))
 
-	var s strings.Builder
-	s.WriteString(stylePack.Render("Library"))
-	s.WriteString("\n\n")
-	s.WriteString(strings.Join(viewLines, "\n"))
+	// Status + footer
 	s.WriteString("\n\n")
 	if m.status != "" {
 		st := styleStatus
@@ -375,7 +434,69 @@ func (m libraryModel) View() string {
 		s.WriteString(st.Render(m.status))
 	}
 	s.WriteString("\n")
-	s.WriteString(styleFooter.Render("q: quit  enter: expand/collapse  a: toggle"))
+
+	action := m.contextualAction()
+	footer := fmt.Sprintf("q: quit  tab: switch  space: %s", action)
+	if m.tab == tabPacks {
+		footer = fmt.Sprintf("q: quit  tab: switch  enter: expand  space: %s", action)
+	}
+	s.WriteString(styleFooter.Render(footer))
 
 	return s.String()
+}
+
+func (m libraryModel) renderSkills() []string {
+	var lines []string
+	for i, name := range m.skills {
+		cursor := "  "
+		if i == m.skillsCursor {
+			cursor = styleCursor.Render("> ")
+		}
+		check := "  "
+		nameStyle := styleSkill
+		if m.installed[name] {
+			check = styleCheck.Render("* ")
+			nameStyle = styleInstalled
+		}
+		lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(name)))
+	}
+	return lines
+}
+
+func (m libraryModel) renderPacks() []string {
+	items := m.packVisibleItems()
+	var lines []string
+	for i, item := range items {
+		if item.isPack {
+			cursor := "  "
+			if i == m.packsCursor {
+				cursor = styleCursor.Render("> ")
+			}
+			pack := m.packs[item.packIdx]
+			arrow := ">"
+			if pack.expanded {
+				arrow = "v"
+			}
+			line := fmt.Sprintf("%s%s %s %s",
+				cursor,
+				stylePackCount.Render(arrow),
+				stylePack.Render(item.name),
+				stylePackCount.Render(m.packCountInfo(pack)),
+			)
+			lines = append(lines, line)
+		} else {
+			cursor := "    "
+			if i == m.packsCursor {
+				cursor = styleCursor.Render("  > ")
+			}
+			check := "  "
+			nameStyle := styleSkill
+			if m.installed[item.name] {
+				check = styleCheck.Render("* ")
+				nameStyle = styleInstalled
+			}
+			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
+		}
+	}
+	return lines
 }

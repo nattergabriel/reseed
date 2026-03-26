@@ -17,6 +17,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cmd.SilenceUsage = true
 	},
+	RunE: runLibrary,
 }
 
 func Execute() error {
