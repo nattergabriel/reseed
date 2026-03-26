@@ -37,47 +37,41 @@ This only needs to be done once.
 
 ```bash
 reseed init ~/skills
-# ✓ Library created at ~/skills
 ```
 
 ### 2. Add skills to your library
 
-Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. These are tracked in your library and can be updated when new versions are published. Use `--pack` to bundle them together for easy installation.
+Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. Use `--pack` to group related skills together.
 
 ```bash
 reseed install anthropics/skills/skills --pack anthropic
-#   + code-review
-#   + generate-tests
-#   + refactor
-# ✓ 3 skills installed, pack "anthropic" created
 ```
 
-### 3. Use skills in a project
+### 3. Browse and manage your library
 
-From inside a project, add skills or packs from your library.
-
-```bash
-reseed add anthropic
-#   + code-review
-#   + generate-tests
-#   + refactor
-# ✓ 3 skills added to your project
-```
-
-Or run `reseed add` without arguments to pick skills interactively:
+Running `reseed` without any args opens an interactive TUI where you can browse your skills and packs, and add or remove them from the current project.
 
 <p align="center">
-  <img src=".github/screenshot.png" alt="reseed add interactive selector"/>
+  <img src=".github/screenshot.png" alt="reseed library TUI"/>
 </p>
-
 
 ### 4. Keep things up to date
 
-Fetch the latest versions of open source skills into your library, then push those updates into your projects.
+Re-copy the latest versions of your library skills into a project:
 
 ```bash
-reseed fetch  # fetch latest versions from GitHub into library
-reseed sync   # re-copy library skills into project
+reseed sync
+```
+
+### CLI commands
+
+All operations available in the TUI also work as standalone commands for scripting and automation:
+
+```bash
+reseed add <skills...>  # add skills or packs to the project
+reseed remove <skills...>  # remove skills from the project
+reseed list  # list library contents
+reseed status  # show skills installed in the project
 ```
 
 For the full walkthrough, see the [quickstart guide](https://reseed.mintlify.app/quickstart). Browse the [docs](https://reseed.mintlify.app) for details on every command.

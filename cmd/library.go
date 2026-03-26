@@ -318,15 +318,15 @@ func (m *libraryModel) clampOffset() {
 }
 
 func (m libraryModel) viewHeight() int {
-	// tab header + blank + blank + status/blank + footer
-	available := m.height - 5
+	// tab header + separator + blank + blank + status/blank + footer
+	available := m.height - 6
 	if available < 1 {
 		available = 1
 	}
 	return available
 }
 
-// contextualAction returns the label for the "a" key based on cursor state.
+// contextualAction returns the action label based on cursor state.
 func (m libraryModel) contextualAction() string {
 	if m.tab == tabSkills {
 		if len(m.skills) == 0 {
@@ -356,17 +356,19 @@ func (m libraryModel) contextualAction() string {
 }
 
 var (
-	stylePack      = lipgloss.NewStyle().Bold(true)
+	stylePack      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))
 	stylePackCount = lipgloss.NewStyle().Faint(true)
 	styleSkill     = lipgloss.NewStyle()
-	styleCursor    = lipgloss.NewStyle().Bold(true)
+	styleCursor    = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styleInstalled = lipgloss.NewStyle().Faint(true)
 	styleCheck     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	styleStatus    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	styleStatusErr = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styleFooterKey = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styleFooter    = lipgloss.NewStyle().Faint(true)
-	styleActiveTab = lipgloss.NewStyle().Bold(true).Underline(true)
+	styleActiveTab = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 	styleTab       = lipgloss.NewStyle().Faint(true)
+	styleSeparator = lipgloss.NewStyle().Faint(true)
 )
 
 func (m libraryModel) packCountInfo(pack libraryPack) string {
@@ -398,7 +400,8 @@ func (m libraryModel) View() string {
 		skillsLabel = styleTab.Render(skillsLabel)
 		packsLabel = styleActiveTab.Render(packsLabel)
 	}
-	fmt.Fprintf(&s, "  %s    %s", skillsLabel, packsLabel)
+	fmt.Fprintf(&s, "  %s    %s\n", skillsLabel, packsLabel)
+	s.WriteString(styleSeparator.Render("  ────────────────"))
 	s.WriteString("\n\n")
 
 	// Content
@@ -420,10 +423,17 @@ func (m libraryModel) View() string {
 	if start > len(lines) {
 		start = len(lines)
 	}
-	s.WriteString(strings.Join(lines[start:end], "\n"))
+	visibleLines := lines[start:end]
+	s.WriteString(strings.Join(visibleLines, "\n"))
+
+	// Pad remaining space so footer stays at the bottom
+	padding := available - len(visibleLines)
+	for range padding {
+		s.WriteString("\n")
+	}
 
 	// Status + footer
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 	if m.status != "" {
 		st := styleStatus
 		if m.statusErr {
@@ -433,12 +443,7 @@ func (m libraryModel) View() string {
 	}
 	s.WriteString("\n")
 
-	action := m.contextualAction()
-	footer := fmt.Sprintf("q: quit  tab: switch  space: %s", action)
-	if m.tab == tabPacks {
-		footer = fmt.Sprintf("q: quit  tab: switch  enter: expand  space: %s", action)
-	}
-	s.WriteString(styleFooter.Render(footer))
+	s.WriteString(m.renderFooter())
 
 	return s.String()
 }
@@ -453,7 +458,7 @@ func (m libraryModel) renderSkills() []string {
 		check := "  "
 		nameStyle := styleSkill
 		if m.installed[name] {
-			check = styleCheck.Render("* ")
+			check = styleCheck.Render("✓ ")
 			nameStyle = styleInstalled
 		}
 		lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(name)))
@@ -471,9 +476,9 @@ func (m libraryModel) renderPacks() []string {
 				cursor = styleCursor.Render("> ")
 			}
 			pack := m.packs[item.packIdx]
-			arrow := ">"
+			arrow := "▶"
 			if pack.expanded {
-				arrow = "v"
+				arrow = "▼"
 			}
 			line := fmt.Sprintf("%s%s %s %s",
 				cursor,
@@ -490,11 +495,28 @@ func (m libraryModel) renderPacks() []string {
 			check := "  "
 			nameStyle := styleSkill
 			if m.installed[item.name] {
-				check = styleCheck.Render("* ")
+				check = styleCheck.Render("✓ ")
 				nameStyle = styleInstalled
 			}
 			lines = append(lines, fmt.Sprintf("%s%s%s", cursor, check, nameStyle.Render(item.name)))
 		}
 	}
 	return lines
+}
+
+func footerItem(key, desc string) string {
+	return styleFooterKey.Render(key) + styleFooter.Render(" "+desc)
+}
+
+func (m libraryModel) renderFooter() string {
+	sep := styleFooter.Render("  ")
+	parts := []string{
+		footerItem("q", "quit"),
+		footerItem("tab", "switch"),
+	}
+	if m.tab == tabPacks {
+		parts = append(parts, footerItem("enter", "expand"))
+	}
+	parts = append(parts, footerItem("space", m.contextualAction()))
+	return strings.Join(parts, sep)
 }
