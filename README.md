@@ -8,7 +8,6 @@
 
 <p align="center">
   <a href="https://reseed.mintlify.app"><img src="https://img.shields.io/badge/docs-mintlify-59617F" alt="Docs" /></a>
-  <a href="https://github.com/nattergabriel/reseed/releases"><img src="https://img.shields.io/github/v/release/nattergabriel/reseed?include_prereleases&color=59617F" alt="Release" /></a>
   <a href="https://github.com/nattergabriel/reseed/blob/main/LICENSE"><img src="https://img.shields.io/github/license/nattergabriel/reseed?color=59617F" alt="License" /></a>
   <a href="https://github.com/nattergabriel/reseed/actions/workflows/ci.yml"><img src="https://github.com/nattergabriel/reseed/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
 </p>
