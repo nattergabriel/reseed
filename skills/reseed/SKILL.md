@@ -3,11 +3,11 @@ name: reseed
 description: How to use reseed to manage agent skills in the current project. Use this skill whenever the user mentions reseed, agent skills, skill management, adding or syncing skills, browsing their skill library, or setting up skills for a project. Also use it when the user asks about what skills are available, wants to install skills from GitHub, or mentions .agents/skills/ or .claude/skills/.
 ---
 
-# Reseed - Agent Skills Manager
+# reseed: Agent Skills Manager
 
-Reseed manages a personal skill library and installs skills into projects. Skills are directories containing a `SKILL.md` file, following the [Agent Skills spec](https://agentskills.io). They live in `.agents/skills/` within each project and are read by 30+ agents (Claude Code, Cursor, Copilot, Codex, Gemini CLI, etc.).
+reseed manages a personal skill library and installs skills into projects. Skills are directories containing a `SKILL.md` file, following the [Agent Skills spec](https://agentskills.io). They live in `.agents/skills/` within each project and are read by 30+ agents (Claude Code, Cursor, Copilot, Codex, Gemini CLI, etc.).
 
-The user manages their library. Your job is to handle everything on the project side - checking what's installed, adding what's needed, and keeping things in sync.
+The user manages their library. Your job is to handle everything on the project side: checking what's installed, adding what's needed, and keeping things in sync.
 
 ## Quick reference
 
@@ -23,7 +23,7 @@ reseed install <source>             # fetch skills from GitHub into the library
 
 ## How it works
 
-- The user has a **library** - a directory on their machine containing all their skills. It can include **packs** (named groups of related skills).
+- The user has a **library**: a directory on their machine containing all their skills. It can include **packs** (named groups of related skills).
 - `reseed add` copies skills from the library into the project's skills directory. These are real file copies, not symlinks, so they show up in git and every team member gets them.
 - `reseed sync` re-copies skills that exist in both the project and the library, pulling in any updates. Skills not in the library are left alone.
 - There's no project manifest. Sync matches by folder name.
@@ -53,7 +53,7 @@ If the user wants to avoid repeating `--dir`, suggest they persist it with `rese
 reseed status
 ```
 
-If the skills directory doesn't exist yet, that's fine - reseed creates it automatically when you add skills.
+If the skills directory doesn't exist yet, that's fine. reseed creates it automatically when you add skills.
 
 ### 2. See what's available
 
@@ -70,7 +70,7 @@ reseed add commit review python-base   # mix skills and packs in one command
 reseed add --all                       # or just add everything
 ```
 
-You can pass any number of skills and packs in a single `reseed add` command - reseed expands packs into their individual skills automatically. Pick what matches the project's stack and needs.
+You can pass any number of skills and packs in a single `reseed add` command, reseed expands packs into their individual skills automatically. Pick what matches the project's stack and needs.
 
 ### 4. Keep skills up to date
 

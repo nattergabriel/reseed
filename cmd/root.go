@@ -10,7 +10,7 @@ var version = "dev"
 var rootCmd = &cobra.Command{
 	Use:   "reseed",
 	Short: "Manage agent skills across projects",
-	Long:  "Reseed manages a personal skill library and lets you install skills into any project's .agents/skills/ directory.",
+	Long:  "reseed manages a personal skill library and lets you install skills into any project's .agents/skills/ directory.",
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
