@@ -183,7 +183,7 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case " ":
 			m.toggleCurrent()
 			m.clampOffset()
-		case "q", "ctrl+c":
+		case "esc", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -497,7 +497,7 @@ func footerItem(key, desc string) string {
 func (m libraryModel) renderFooter() string {
 	sep := styleFooter.Render("  ")
 	parts := []string{
-		footerItem("q", "quit"),
+		footerItem("esc", "quit"),
 		footerItem("tab", "switch"),
 	}
 	if m.tab == tabPacks {

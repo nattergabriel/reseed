@@ -14,7 +14,7 @@
 
 ---
 
-Reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project so every teammate has access. Your library can be a git repo to version and share your collection.
+Reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project. That way also every teammate has access to them. Your library can be a git repo to version and share your collection.
 
 ## Install
 
