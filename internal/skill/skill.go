@@ -1,12 +1,14 @@
 package skill
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const MarkerFile = "SKILL.md"
@@ -37,9 +39,35 @@ func List(parentDir string) ([]string, error) {
 
 // SkillEntry represents a skill found in the library, potentially inside a pack.
 type SkillEntry struct {
-	Name string // leaf directory name, e.g. "commit"
-	Pack string // pack name, empty for standalone skills
-	Path string // full filesystem path to the skill directory
+	Name        string // leaf directory name, e.g. "commit"
+	Pack        string // pack name, empty for standalone skills
+	Path        string // full filesystem path to the skill directory
+	Description string // from SKILL.md frontmatter, may be empty
+}
+
+// ReadDescription extracts the description field from a SKILL.md frontmatter.
+// Returns an empty string if the file has no frontmatter or no description.
+func ReadDescription(skillDir string) string {
+	f, err := os.Open(filepath.Join(skillDir, MarkerFile))
+	if err != nil {
+		return ""
+	}
+	defer f.Close() //nolint:errcheck // best-effort read
+
+	scanner := bufio.NewScanner(f)
+	if !scanner.Scan() || strings.TrimSpace(scanner.Text()) != "---" {
+		return ""
+	}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "---" {
+			break
+		}
+		if strings.HasPrefix(line, "description:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "description:"))
+		}
+	}
+	return ""
 }
 
 // ListNested scans parentDir for skills at two levels: standalone skills directly
@@ -63,8 +91,9 @@ func ListNested(parentDir string) ([]SkillEntry, error) {
 
 		if IsSkill(dirPath) {
 			skills = append(skills, SkillEntry{
-				Name: e.Name(),
-				Path: dirPath,
+				Name:        e.Name(),
+				Path:        dirPath,
+				Description: ReadDescription(dirPath),
 			})
 			continue
 		}
@@ -78,9 +107,10 @@ func ListNested(parentDir string) ([]SkillEntry, error) {
 			childPath := filepath.Join(dirPath, child.Name())
 			if child.IsDir() && IsSkill(childPath) {
 				skills = append(skills, SkillEntry{
-					Name: child.Name(),
-					Pack: e.Name(),
-					Path: childPath,
+					Name:        child.Name(),
+					Pack:        e.Name(),
+					Path:        childPath,
+					Description: ReadDescription(childPath),
 				})
 			}
 		}

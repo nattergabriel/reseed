@@ -8,11 +8,16 @@ import (
 
 func createSkill(t *testing.T, dir, name string) string {
 	t.Helper()
+	return createSkillWithFrontmatter(t, dir, name, "# "+name)
+}
+
+func createSkillWithFrontmatter(t *testing.T, dir, name, content string) string {
+	t.Helper()
 	skillDir := filepath.Join(dir, name)
 	if err := os.MkdirAll(skillDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(skillDir, MarkerFile), []byte("# "+name), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(skillDir, MarkerFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return skillDir
@@ -59,6 +64,54 @@ func TestList_NonExistent(t *testing.T) {
 	}
 	if skills != nil {
 		t.Errorf("expected nil, got %v", skills)
+	}
+}
+
+func TestReadDescription(t *testing.T) {
+	dir := t.TempDir()
+
+	// Skill with frontmatter description
+	withDesc := createSkillWithFrontmatter(t, dir, "with-desc", "---\nname: with-desc\ndescription: A helpful skill\n---\n# With Desc")
+
+	if got := ReadDescription(withDesc); got != "A helpful skill" {
+		t.Errorf("got %q, want %q", got, "A helpful skill")
+	}
+
+	// Skill without frontmatter
+	noFront := createSkill(t, dir, "no-front")
+
+	if got := ReadDescription(noFront); got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+
+	// Skill with frontmatter but no description
+	noDesc := createSkillWithFrontmatter(t, dir, "no-desc", "---\nname: no-desc\n---\n# No Desc")
+
+	if got := ReadDescription(noDesc); got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+
+	// Non-existent directory
+	if got := ReadDescription(filepath.Join(dir, "nope")); got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestListNestedDescriptions(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a skill with a description
+	createSkillWithFrontmatter(t, dir, "my-skill", "---\nname: my-skill\ndescription: Does things\n---\n")
+
+	entries, err := ListNested(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(entries))
+	}
+	if entries[0].Description != "Does things" {
+		t.Errorf("got description %q, want %q", entries[0].Description, "Does things")
 	}
 }
 
