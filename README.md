@@ -14,7 +14,7 @@
 
 ---
 
-reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project. That way also every teammate has access to them. Your library can be a git repo to version and share your collection.
+reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project so every teammate has access to them.
 
 ## Install
 
@@ -30,6 +30,8 @@ curl -fsSL https://raw.githubusercontent.com/nattergabriel/reseed/main/install.s
 
 Your **library** is a directory where all your skills live. It can be any folder on your machine (and can itself be a git repo to version and share your collection). From there, you install skills into any project's `.agents/skills/` directory.
 
+**Using Claude Code?** Run `reseed config dir .claude/skills` once so skills install into `.claude/skills/` instead.
+
 ### 1. Create your library
 
 This only needs to be done once.
@@ -40,10 +42,10 @@ reseed init ~/skills
 
 ### 2. Add skills to your library
 
-Write your own skills (any folder with a `SKILL.md` file) or pull in open source ones from GitHub. Use `--pack` to group related skills together.
+Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from a GitHub URL. Use `--pack` to group related skills together.
 
 ```bash
-reseed install anthropics/skills/skills --pack anthropic
+reseed install https://github.com/pbakaus/impeccable/tree/main/source/skills --pack impeccable
 ```
 
 ### 3. Browse and manage your library
@@ -56,7 +58,7 @@ Running `reseed` without any args opens an interactive TUI where you can browse 
 
 ### 4. Keep things up to date
 
-Re-copy the latest versions of your library skills into a project:
+Update the current project with the latest versions from your library:
 
 ```bash
 reseed sync
