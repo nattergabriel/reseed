@@ -20,6 +20,11 @@ func TestParseRef(t *testing.T) {
 		{"user/repo/tree/v1.0/src/skills/commit", SkillRef{Owner: "user", Repo: "repo", Path: "src/skills/commit"}, false},
 		{"user/repo/blob/main/src/skills/commit", SkillRef{Owner: "user", Repo: "repo", Path: "src/skills/commit"}, false},
 		{"user/repo/tree/main", SkillRef{Owner: "user", Repo: "repo"}, false},
+		// Full GitHub URLs - https:// and http:// prefixes are stripped
+		{"https://github.com/user/repo", SkillRef{Owner: "user", Repo: "repo"}, false},
+		{"https://github.com/user/repo/tree/main/src/skills", SkillRef{Owner: "user", Repo: "repo", Path: "src/skills"}, false},
+		{"https://github.com/user/repo/tree/v1.0/src/skills/commit", SkillRef{Owner: "user", Repo: "repo", Path: "src/skills/commit"}, false},
+		{"http://github.com/user/repo/blob/main/src/skills/commit", SkillRef{Owner: "user", Repo: "repo", Path: "src/skills/commit"}, false},
 		{"invalid", SkillRef{}, true},
 		{"/repo", SkillRef{}, true},
 		{"user/", SkillRef{}, true},

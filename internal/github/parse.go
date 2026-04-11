@@ -20,8 +20,12 @@ type SkillRef struct {
 //	user/repo@version
 //	user/repo/path/to/skill
 //	user/repo/path/to/skills@version
+//	https://github.com/user/repo/tree/main/path/to/skills
 func ParseRef(spec string) (*SkillRef, error) {
 	ref := &SkillRef{}
+
+	spec = strings.TrimPrefix(spec, "https://github.com/")
+	spec = strings.TrimPrefix(spec, "http://github.com/")
 
 	// Split off @version first
 	if idx := strings.LastIndex(spec, "@"); idx != -1 {
