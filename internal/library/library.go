@@ -40,7 +40,7 @@ func Init(path string) (*Library, error) {
 	}
 	globalCfg.Library = absPath
 	if err := config.SaveGlobal(globalCfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("saving global config: %w", err)
 	}
 
 	return &Library{Path: absPath}, nil

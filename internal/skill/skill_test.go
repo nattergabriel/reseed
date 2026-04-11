@@ -97,21 +97,25 @@ func TestReadDescription(t *testing.T) {
 	}
 }
 
-func TestListNestedDescriptions(t *testing.T) {
+func TestListNested(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create a skill with a description
-	createSkillWithFrontmatter(t, dir, "my-skill", "---\nname: my-skill\ndescription: Does things\n---\n")
+	createSkill(t, dir, "standalone")
+	packDir := filepath.Join(dir, "mypack")
+	createSkill(t, packDir, "inpack")
 
 	entries, err := ListNested(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("got %d entries, want 1", len(entries))
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want 2", len(entries))
 	}
-	if entries[0].Description != "Does things" {
-		t.Errorf("got description %q, want %q", entries[0].Description, "Does things")
+	if entries[0].Name != "standalone" || entries[0].Pack != "" {
+		t.Errorf("got %+v, want {Name: standalone, Pack: \"\"}", entries[0])
+	}
+	if entries[1].Name != "inpack" || entries[1].Pack != "mypack" {
+		t.Errorf("got %+v, want {Name: inpack, Pack: mypack}", entries[1])
 	}
 }
 

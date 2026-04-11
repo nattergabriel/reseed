@@ -31,12 +31,11 @@ func runLibrary(cmd *cobra.Command, args []string) error {
 
 	skills, packs := buildSkillsAndPacks(entries)
 
-	installed, _ := project.InstalledSet()
-	if installed == nil {
-		installed = make(map[string]bool)
+	installed, err := project.InstalledSet()
+	if err != nil {
+		return err
 	}
 
-	// Default to packs tab if there are no standalone skills
 	startTab := tabSkills
 	if len(skills) == 0 {
 		startTab = tabPacks
@@ -207,7 +206,6 @@ func (m *libraryModel) moveCursor(dir int) {
 	}
 }
 
-// packIndexOf returns the visible item index for a given pack index.
 func (m libraryModel) packIndexOf(packIdx int) int {
 	idx := 0
 	for i, p := range m.packs {
@@ -317,18 +315,18 @@ func (m *libraryModel) clampOffset() {
 	}
 }
 
-func (m libraryModel) viewHeight() int {
-	header := m.renderHeader()
-	footer := m.renderFooter()
+func (m libraryModel) availableHeight(header, footer string) int {
 	chrome := lipgloss.Height(header) + lipgloss.Height(footer) + 2
-	available := m.height - chrome
-	if available < 1 {
-		available = 1
+	if available := m.height - chrome; available > 1 {
+		return available
 	}
-	return available
+	return 1
 }
 
-// contextualAction returns the action label based on cursor state.
+func (m libraryModel) viewHeight() int {
+	return m.availableHeight(m.renderHeader(), m.renderFooter())
+}
+
 func (m libraryModel) contextualAction() string {
 	if m.tab == tabSkills {
 		if len(m.skills) == 0 {
@@ -403,12 +401,7 @@ func (m libraryModel) renderHeader() string {
 func (m libraryModel) View() string {
 	header := m.renderHeader()
 	footer := m.renderFooter()
-
-	chrome := lipgloss.Height(header) + lipgloss.Height(footer) + 2
-	available := m.height - chrome
-	if available < 1 {
-		available = 1
-	}
+	available := m.availableHeight(header, footer)
 
 	var lines []string
 	var offset int

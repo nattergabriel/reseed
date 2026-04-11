@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/nattergabriel/reseed/internal/skill"
 )
 
 type Client struct {
@@ -86,10 +88,9 @@ func (c *Client) ResolveVersion(ctx context.Context, owner, repo, version string
 	return tags[0].Name, nil
 }
 
-// ExtractedSkill holds the name and repo-relative path of an extracted skill.
+// ExtractedSkill is the result of a successful skill extraction.
 type ExtractedSkill struct {
 	Name string // directory name, e.g. "commit"
-	Path string // repo-relative path, e.g. "src/skills/commit"
 }
 
 // FetchSkills downloads a repo tarball and extracts skill directories into destDir.
@@ -194,10 +195,9 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 			data:     data,
 		})
 
-		// Detect SKILL.md at any depth: "some/path/skillname/SKILL.md"
-		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == "SKILL.md" {
-			skillDir := filepath.Dir(name)      // "some/path/skillname"
-			skillName := filepath.Base(skillDir) // "skillname"
+		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == skill.MarkerFile {
+			skillDir := filepath.Dir(name)
+			skillName := filepath.Base(skillDir)
 
 			// Apply path filter: only include skills at or under filterPath
 			if filterPath != "" && skillDir != filterPath && !strings.HasPrefix(skillDir, filterPath+"/") {
@@ -213,11 +213,7 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 	}
 
 	// Extract files belonging to skill directories, flattening into destDir/skillname/
-	type skillInfo struct {
-		name string
-		path string // repo-relative dir path
-	}
-	extracted := make(map[string]skillInfo)
+	extracted := make(map[string]bool)
 
 	for _, e := range entries {
 		for prefix, skillName := range skillDirs {
@@ -243,20 +239,14 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 				}
 			}
 
-			extracted[skillName] = skillInfo{
-				name: skillName,
-				path: strings.TrimSuffix(prefix, "/"),
-			}
+			extracted[skillName] = true
 			break
 		}
 	}
 
-	var skills []ExtractedSkill
-	for _, info := range extracted {
-		skills = append(skills, ExtractedSkill{
-			Name: info.name,
-			Path: info.path,
-		})
+	skills := make([]ExtractedSkill, 0, len(extracted))
+	for name := range extracted {
+		skills = append(skills, ExtractedSkill{Name: name})
 	}
 	sort.Slice(skills, func(i, j int) bool {
 		return skills[i].Name < skills[j].Name

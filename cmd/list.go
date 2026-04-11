@@ -64,19 +64,19 @@ func printListShort(entries []skill.SkillEntry) {
 }
 
 func printListLong(entries []skill.SkillEntry) {
-	descByName := make(map[string]string)
+	descByKey := make(map[string]string, len(entries))
 	for _, e := range entries {
 		key := e.Name
 		if e.Pack != "" {
 			key = e.Pack + "/" + e.Name
 		}
-		descByName[key] = e.Description
+		descByKey[key] = skill.ReadDescription(e.Path)
 	}
 
 	skills, packs := buildSkillsAndPacks(entries)
 
 	for _, name := range skills {
-		printSkillLong(name, descByName[name])
+		printSkillLong(name, descByKey[name])
 	}
 
 	for i, p := range packs {
@@ -85,7 +85,7 @@ func printListLong(entries []skill.SkillEntry) {
 		}
 		fmt.Printf("%s:\n", p.name)
 		for _, s := range p.skills {
-			printSkillLong("  "+s, descByName[p.name+"/"+s])
+			printSkillLong("  "+s, descByKey[p.name+"/"+s])
 		}
 	}
 }

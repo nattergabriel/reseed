@@ -39,10 +39,9 @@ func List(parentDir string) ([]string, error) {
 
 // SkillEntry represents a skill found in the library, potentially inside a pack.
 type SkillEntry struct {
-	Name        string // leaf directory name, e.g. "commit"
-	Pack        string // pack name, empty for standalone skills
-	Path        string // full filesystem path to the skill directory
-	Description string // from SKILL.md frontmatter, may be empty
+	Name string // leaf directory name, e.g. "commit"
+	Pack string // pack name, empty for standalone skills
+	Path string // full filesystem path to the skill directory
 }
 
 // ReadDescription extracts the description field from a SKILL.md frontmatter.
@@ -91,9 +90,8 @@ func ListNested(parentDir string) ([]SkillEntry, error) {
 
 		if IsSkill(dirPath) {
 			skills = append(skills, SkillEntry{
-				Name:        e.Name(),
-				Path:        dirPath,
-				Description: ReadDescription(dirPath),
+				Name: e.Name(),
+				Path: dirPath,
 			})
 			continue
 		}
@@ -107,10 +105,9 @@ func ListNested(parentDir string) ([]SkillEntry, error) {
 			childPath := filepath.Join(dirPath, child.Name())
 			if child.IsDir() && IsSkill(childPath) {
 				skills = append(skills, SkillEntry{
-					Name:        child.Name(),
-					Pack:        e.Name(),
-					Path:        childPath,
-					Description: ReadDescription(childPath),
+					Name: child.Name(),
+					Pack: e.Name(),
+					Path: childPath,
 				})
 			}
 		}

@@ -80,11 +80,7 @@ func RemoveSkill(skillName string) error {
 	if err != nil {
 		return err
 	}
-	dst := filepath.Join(projectDir, skillName)
-	if err := os.RemoveAll(dst); err != nil {
-		return fmt.Errorf("removing %s: %w", skillName, err)
-	}
-	return nil
+	return os.RemoveAll(filepath.Join(projectDir, skillName))
 }
 
 func SyncSkills(lib *library.Library) ([]string, error) {
