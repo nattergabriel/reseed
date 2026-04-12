@@ -36,7 +36,7 @@ Your **library** is a directory where all your skills live. It can be any folder
 
 ### 1. Create your library
 
-This only needs to be done once.
+Point reseed at a folder to use as your library. This only needs to be done once.
 
 ```bash
 reseed init ~/my-skills-library
