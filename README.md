@@ -14,7 +14,9 @@
 
 ---
 
-reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and install exactly what each project needs. Instead of global skills that bloat every project, skills live in each project so every teammate has access to them.
+reseed manages your [agent skills](https://agentskills.io) across projects. Keep all your skills in one central library, pull in open source ones from GitHub, and add exactly what each project needs. Instead of global skills that bloat every project, skills live in each project so every teammate has access to them.
+
+If you find reseed useful, a ⭐ helps others discover it.
 
 ## Install
 
@@ -37,7 +39,7 @@ Your **library** is a directory where all your skills live. It can be any folder
 This only needs to be done once.
 
 ```bash
-reseed init ~/skills
+reseed init ~/my-skills-library
 ```
 
 ### 2. Add skills to your library
@@ -45,7 +47,7 @@ reseed init ~/skills
 Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from a GitHub URL. Use `--pack` to group related skills together.
 
 ```bash
-reseed install https://github.com/pbakaus/impeccable/tree/main/source/skills --pack impeccable
+reseed install pbakaus/impeccable/source/skills --pack impeccable
 ```
 
 ### 3. Browse and manage your library
@@ -58,10 +60,18 @@ Running `reseed` without any args opens an interactive TUI where you can browse 
 
 ### 4. Keep things up to date
 
-Update the current project with the latest versions from your library:
+Re-copy skills from your library into the current project to pick up any changes:
 
 ```bash
 reseed sync
+```
+
+### Teach your agent to use reseed
+
+This repo includes a [skill](skills/reseed) that teaches your agent how to use reseed on your behalf. Copy it into your agent's global skills directory so it's available across all your projects:
+
+```bash
+curl -sL https://raw.githubusercontent.com/nattergabriel/reseed/main/skills/reseed/SKILL.md -o ~/.claude/skills/reseed/SKILL.md --create-dirs
 ```
 
 ### CLI commands
@@ -77,17 +87,9 @@ reseed status  # show skills installed in the project
 
 For the full walkthrough, see the [quickstart guide](https://reseed.mintlify.app/quickstart). Browse the [docs](https://reseed.mintlify.app) for details on every command.
 
-### LLM integration
-
-This repo includes a skill that teaches LLMs how to use reseed. Install it and your agent can manage skills on your behalf, like finding and installing skills that fit your project:
-
-```bash
-reseed install nattergabriel/reseed/skills
-```
-
 ## Contributing
 
-Requires Go 1.24+ and [golangci-lint](https://golangci-lint.run/). Run `make setup` to enable pre-commit hooks.
+Requires Go 1.24+ and [golangci-lint](https://golangci-lint.run/). Run `make setup` to enable pre-commit hooks. If you have ideas or suggestions, [open an issue](https://github.com/nattergabriel/reseed/issues), happy to hear them.
 
 ## License
 
