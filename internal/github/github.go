@@ -86,15 +86,20 @@ func extractSkills(r io.Reader, destDir, filterPath string) ([]string, error) {
 		return nil, err
 	}
 
+	// Only a non-empty filterPath can name a root skill; with no filter, root
+	// is the temp dir and its base name is meaningless.
 	root := filepath.Join(tmp, filepath.FromSlash(filterPath))
 	var found []reseed.Skill
-	if reseed.IsSkill(root) {
+	if filterPath != "" && reseed.IsSkill(root) {
 		found = []reseed.Skill{{Name: filepath.Base(root), Path: root}}
 	} else if found, err = reseed.FindSkills(root); err != nil {
 		return nil, err
 	}
-	if len(found) == 0 && filterPath != "" {
-		return nil, fmt.Errorf("no skills found under %q", filterPath)
+	if len(found) == 0 {
+		if filterPath != "" {
+			return nil, fmt.Errorf("no skills found under %q", filterPath)
+		}
+		return nil, errors.New("no skills found in repository")
 	}
 
 	var names []string

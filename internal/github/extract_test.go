@@ -99,6 +99,13 @@ func TestExtractSkills(t *testing.T) {
 	}
 }
 
+func TestExtractSkills_NoSkills(t *testing.T) {
+	tarball := buildTarball(t, map[string]string{"README.md": "readme"})
+	if _, err := extractSkills(tarball, t.TempDir(), ""); err == nil {
+		t.Fatal("expected error for a repo containing no skills")
+	}
+}
+
 func contains(s []string, v string) bool {
 	for _, x := range s {
 		if x == v {
