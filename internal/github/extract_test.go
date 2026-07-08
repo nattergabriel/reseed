@@ -74,16 +74,12 @@ func TestExtractSkills(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			var names []string
-			for _, s := range got {
-				names = append(names, s)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
 			}
-			if len(names) != len(tt.want) {
-				t.Fatalf("got %v, want %v", names, tt.want)
-			}
-			for i := range names {
-				if names[i] != tt.want[i] {
-					t.Fatalf("got %v, want %v", names, tt.want)
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("got %v, want %v", got, tt.want)
 				}
 			}
 
