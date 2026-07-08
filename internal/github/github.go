@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,10 +35,6 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	return c.HTTPClient.Do(req)
 }
 
-type tag struct {
-	Name string `json:"name"`
-}
-
 func apiError(status int, repo string) error {
 	switch status {
 	case http.StatusNotFound:
@@ -53,59 +48,16 @@ func apiError(status int, repo string) error {
 	}
 }
 
-// ResolveVersion resolves "latest" or empty version to the most recent tag.
-func (c *Client) ResolveVersion(ctx context.Context, owner, repo, version string) (string, error) {
-	if version != "" && version != VersionLatest {
-		return version, nil
-	}
-
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/tags?per_page=1", owner, repo)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.do(req)
-	if err != nil {
-		return "", fmt.Errorf("fetching tags for %s/%s: %w", owner, repo, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", apiError(resp.StatusCode, fmt.Sprintf("%s/%s", owner, repo))
-	}
-
-	var tags []tag
-	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return "", fmt.Errorf("parsing tags response: %w", err)
-	}
-
-	if len(tags) == 0 {
-		// No tags - use default branch (empty ref in tarball URL)
-		return "", nil
-	}
-
-	return tags[0].Name, nil
-}
-
 // ExtractedSkill is the result of a successful skill extraction.
 type ExtractedSkill struct {
 	Name string // directory name, e.g. "commit"
 }
 
-// FetchSkills downloads a repo tarball and extracts skill directories into destDir.
-// If ref.Path is set, only skills at or under that path are extracted.
-// Returns the extracted skills with their names and repo-relative paths.
+// FetchSkills downloads the repo's default-branch tarball and extracts skill
+// directories into destDir. If ref.Path is set, only skills at or under that
+// path are extracted.
 func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
-	version, err := c.ResolveVersion(ctx, ref.Owner, ref.Repo, ref.Version)
-	if err != nil {
-		return nil, err
-	}
-
 	tarURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/tarball", ref.Owner, ref.Repo)
-	if version != "" {
-		tarURL += "/" + version
-	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", tarURL, nil)
 	if err != nil {

@@ -86,13 +86,12 @@ Run this when the user wants to pull the latest versions of their skills into th
 ## Installing skills from GitHub
 
 `install` and `add` do different things:
-- `reseed install` fetches from GitHub into the user's **library**. It takes a `user/repo[/path][@version]` reference, not a URL.
+- `reseed install` fetches from GitHub into the user's **library**. It takes a `user/repo[/path]` reference, not a URL. It always fetches the repo's default branch.
 - `reseed add` copies from the library into the **project**. It takes local skill or pack names.
 
 ```bash
 reseed install user/repo                 # all skills from the repo
 reseed install user/repo/path/to/skills  # skills under a specific directory
-reseed install user/repo@v2.0            # pin to a version tag
 reseed install user/repo --pack mypack   # group them into a pack
 ```
 

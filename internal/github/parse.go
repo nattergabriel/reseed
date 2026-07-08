@@ -5,32 +5,18 @@ import (
 	"strings"
 )
 
-const VersionLatest = "latest"
-
 type SkillRef struct {
-	Owner   string
-	Repo    string
-	Path    string // sub-path within repo; empty = all skills
-	Version string // empty = latest
+	Owner string
+	Repo  string
+	Path  string // sub-path within repo; empty = all skills
 }
 
 // ParseRef parses specifiers like:
 //
 //	user/repo
-//	user/repo@version
 //	user/repo/path/to/skill
-//	user/repo/path/to/skills@version
 func ParseRef(spec string) (*SkillRef, error) {
 	ref := &SkillRef{}
-
-	// Split off @version first
-	if idx := strings.LastIndex(spec, "@"); idx != -1 {
-		ref.Version = spec[idx+1:]
-		spec = spec[:idx]
-		if ref.Version == "" {
-			return nil, fmt.Errorf("empty version in %q", spec)
-		}
-	}
 
 	parts := strings.SplitN(spec, "/", 3)
 	if len(parts) < 2 {

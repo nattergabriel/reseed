@@ -17,7 +17,7 @@ func init() {
 }
 
 var installCmd = &cobra.Command{
-	Use:     "install <user/repo[/path][@version]>",
+	Use:     "install <user/repo[/path]>",
 	Short:   "Fetch skills from a GitHub repo into your library",
 	GroupID: groupLibrary,
 	Long: `Downloads skills from GitHub repositories and adds them to your library.
@@ -26,7 +26,6 @@ Examples:
   reseed install user/repo                    # all skills from the repo
   reseed install user/repo/src/skills/commit  # one specific skill
   reseed install user/repo/src/skills         # all skills under a directory
-  reseed install user/repo@v2.0               # pin to a tag
   reseed install user/repo user2/repo2        # multiple sources at once
   reseed install user/repo/src/skills -p kit  # install into a pack`,
 	Args: cobra.MinimumNArgs(1),
@@ -51,11 +50,6 @@ Examples:
 				return err
 			}
 
-			versionStr := ref.Version
-			if versionStr == "" {
-				versionStr = github.VersionLatest
-			}
-
 			source := fmt.Sprintf("%s/%s", ref.Owner, ref.Repo)
 			if ref.Path != "" {
 				source += "/" + ref.Path
@@ -63,7 +57,7 @@ Examples:
 
 			var skills []github.ExtractedSkill
 			err = spinner.New().
-				Title(fmt.Sprintf("  Fetching %s (%s)...", source, versionStr)).
+				Title(fmt.Sprintf("  Fetching %s...", source)).
 				ActionWithErr(func(ctx context.Context) error {
 					var ferr error
 					skills, ferr = client.FetchSkills(ctx, ref, destDir)
