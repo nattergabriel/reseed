@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-var DefaultSkillsDir = ".agents/skills"
+const DefaultSkillsDir = ".agents/skills"
 
 // Project is the destination side: the current project's skills directory.
 type Project struct {
