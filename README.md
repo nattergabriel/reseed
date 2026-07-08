@@ -44,7 +44,7 @@ reseed init ~/my-skills-library
 
 ### 2. Add skills to your library
 
-Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from a GitHub URL. Use `--pack` to group related skills together.
+Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from GitHub with a `user/repo[/path][@version]` reference. Use `--pack` to group related skills together.
 
 ```bash
 reseed install pbakaus/impeccable/source/skills --pack impeccable

@@ -22,7 +22,7 @@ reseed add <skills-or-packs...>     # copy skills/packs from library into the pr
 reseed add --all                    # add every skill from the library
 reseed remove <skills...>           # remove skills from the project
 reseed sync                         # re-copy installed skills from library (get updates)
-reseed install <user/repo or URL>   # fetch skills from GitHub into the library
+reseed install <user/repo>          # fetch skills from GitHub into the library
 ```
 
 ## How it works
@@ -86,15 +86,14 @@ Run this when the user wants to pull the latest versions of their skills into th
 ## Installing skills from GitHub
 
 `install` and `add` do different things:
-- `reseed install` fetches from GitHub into the user's **library**. It takes a GitHub reference (short form or full URL).
+- `reseed install` fetches from GitHub into the user's **library**. It takes a `user/repo[/path][@version]` reference, not a URL.
 - `reseed add` copies from the library into the **project**. It takes local skill or pack names.
 
 ```bash
-reseed install user/repo                                          # all skills from the repo
-reseed install user/repo/path/to/skills                           # skills under a specific directory
-reseed install https://github.com/user/repo/tree/main/src/skills  # full GitHub URL also works
-reseed install user/repo@v2.0                                     # pin to a version tag
-reseed install user/repo --pack mypack                            # group them into a pack
+reseed install user/repo                 # all skills from the repo
+reseed install user/repo/path/to/skills  # skills under a specific directory
+reseed install user/repo@v2.0            # pin to a version tag
+reseed install user/repo --pack mypack   # group them into a pack
 ```
 
 After installing, use `reseed add` to bring them into the project.
