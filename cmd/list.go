@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/library"
-	"github.com/nattergabriel/reseed/internal/skill"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -20,45 +19,40 @@ var listCmd = &cobra.Command{
 	Short:   "List skills in your library",
 	GroupID: groupLibrary,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Open()
+		lib, err := reseed.OpenLibrary()
 		if err != nil {
 			return err
 		}
 
-		entries, err := lib.ListSkillEntries()
-		if err != nil {
-			return err
-		}
-
-		if len(entries) == 0 {
+		if len(lib.Skills) == 0 {
 			fmt.Println("No skills in library.")
 			return nil
 		}
 
-		printList(entries, listLong)
+		printList(lib.Skills, listLong)
 		return nil
 	},
 }
 
-// printList prints entries grouped by folder. Entries are sorted by group,
-// so top-level skills come first, followed by one section per folder.
-func printList(entries []skill.SkillEntry, long bool) {
+// printList prints skills grouped by folder. Skills are sorted by group, so
+// top-level skills come first, followed by one section per folder.
+func printList(skills []reseed.Skill, long bool) {
 	prevGroup := ""
-	for i, e := range entries {
-		if e.Group != prevGroup {
+	for i, s := range skills {
+		if s.Group != prevGroup {
 			if i > 0 {
 				fmt.Println()
 			}
-			fmt.Printf("%s:\n", e.Group)
-			prevGroup = e.Group
+			fmt.Printf("%s:\n", s.Group)
+			prevGroup = s.Group
 		}
 
-		name := e.Name
-		if e.Group != "" {
+		name := s.Name
+		if s.Group != "" {
 			name = "  " + name
 		}
 		if long {
-			if desc := skill.ReadDescription(e.Path); desc != "" {
+			if desc := reseed.ReadDescription(s.Path); desc != "" {
 				fmt.Printf("%s - %s\n", name, desc)
 				continue
 			}

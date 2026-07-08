@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,12 @@ var statusCmd = &cobra.Command{
 	Short:   "Show skills installed in the current project",
 	GroupID: groupProject,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		installed, err := project.ListInstalled()
+		proj, err := reseed.OpenProject(flagDir)
+		if err != nil {
+			return err
+		}
+
+		installed, err := proj.Installed()
 		if err != nil {
 			return err
 		}

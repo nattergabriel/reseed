@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/library"
-	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -15,12 +14,16 @@ var addCmd = &cobra.Command{
 	Long:    "Copies skills from your library into the project's .agents/skills/ directory. Naming a library folder adds every skill under it.",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Open()
+		lib, err := reseed.OpenLibrary()
+		if err != nil {
+			return err
+		}
+		proj, err := reseed.OpenProject(flagDir)
 		if err != nil {
 			return err
 		}
 
-		var skills []string
+		var skills []reseed.Skill
 		for _, arg := range args {
 			resolved, err := lib.Resolve(arg)
 			if err != nil {
@@ -29,11 +32,11 @@ var addCmd = &cobra.Command{
 			skills = append(skills, resolved...)
 		}
 
-		for _, name := range skills {
-			if err := project.AddSkill(lib, name); err != nil {
-				return fmt.Errorf("adding %s: %w", name, err)
+		for _, s := range skills {
+			if err := proj.Add(s); err != nil {
+				return fmt.Errorf("adding %s: %w", s.Name, err)
 			}
-			fmt.Printf("  + %s\n", name)
+			fmt.Printf("  + %s\n", s.Name)
 		}
 
 		printSummary("Added", len(skills))

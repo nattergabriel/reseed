@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/config"
-	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -26,14 +25,14 @@ Available keys:
 			return fmt.Errorf("unknown key: %s", key)
 		}
 
-		cfg, err := config.LoadGlobal()
+		cfg, err := reseed.LoadConfig()
 		if err != nil {
 			return err
 		}
 
 		if len(args) == 1 {
 			if cfg.Dir == "" {
-				fmt.Printf("%s (default)\n", project.DefaultSkillsDir)
+				fmt.Printf("%s (default)\n", reseed.DefaultSkillsDir)
 			} else {
 				fmt.Println(cfg.Dir)
 			}
@@ -41,7 +40,7 @@ Available keys:
 		}
 
 		cfg.Dir = args[1]
-		if err := config.SaveGlobal(cfg); err != nil {
+		if err := reseed.SaveConfig(cfg); err != nil {
 			return err
 		}
 

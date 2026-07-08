@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/library"
-	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -18,12 +17,16 @@ var syncCmd = &cobra.Command{
 	GroupID: groupProject,
 	Long:    "Re-copies skills from the library into the project. Matches by name — skills not in the library are left untouched.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Open()
+		lib, err := reseed.OpenLibrary()
+		if err != nil {
+			return err
+		}
+		proj, err := reseed.OpenProject(flagDir)
 		if err != nil {
 			return err
 		}
 
-		updated, err := project.SyncSkills(lib)
+		updated, err := proj.Sync(lib)
 		if err != nil {
 			return err
 		}

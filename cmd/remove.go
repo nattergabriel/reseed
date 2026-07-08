@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/project"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -18,24 +18,19 @@ var removeCmd = &cobra.Command{
 	Long:    "Removes skills from the project's skills directory.",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		installedSet, err := project.InstalledSet()
+		proj, err := reseed.OpenProject(flagDir)
 		if err != nil {
 			return err
 		}
 
-		var removed int
 		for _, name := range args {
-			if !installedSet[name] {
-				return fmt.Errorf("skill %q not installed", name)
-			}
-			if err := project.RemoveSkill(name); err != nil {
-				return fmt.Errorf("removing %s: %w", name, err)
+			if err := proj.Remove(name); err != nil {
+				return err
 			}
 			fmt.Printf("  - %s\n", name)
-			removed++
 		}
 
-		printSummary("Removed", removed)
+		printSummary("Removed", len(args))
 		return nil
 	},
 }

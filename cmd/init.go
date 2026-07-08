@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nattergabriel/reseed/internal/library"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -22,21 +22,16 @@ var initCmd = &cobra.Command{
 		if len(args) > 0 {
 			path = args[0]
 		}
-		lib, err := library.Init(path)
-		if err != nil {
-			return err
-		}
-
-		skills, err := lib.ListSkills()
+		lib, err := reseed.InitLibrary(path)
 		if err != nil {
 			return err
 		}
 
 		fmt.Printf("Library initialized at %s\n", lib.Path)
-		if len(skills) > 0 {
-			fmt.Printf("Found %d existing %s:\n", len(skills), skillNoun(len(skills)))
-			for _, s := range skills {
-				fmt.Printf("  %s\n", s)
+		if len(lib.Skills) > 0 {
+			fmt.Printf("Found %d existing %s:\n", len(lib.Skills), skillNoun(len(lib.Skills)))
+			for _, s := range lib.Skills {
+				fmt.Printf("  %s\n", s.Name)
 			}
 		}
 

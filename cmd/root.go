@@ -1,11 +1,13 @@
 package cmd
 
 import (
-	"github.com/nattergabriel/reseed/internal/project"
 	"github.com/spf13/cobra"
 )
 
 var version = "dev"
+
+// flagDir is the --dir persistent flag: overrides the project skills directory.
+var flagDir string
 
 var rootCmd = &cobra.Command{
 	Use:   "reseed",
@@ -17,7 +19,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cmd.SilenceUsage = true
 	},
-	RunE: runLibrary,
+	RunE: runTUI,
 }
 
 func Execute() error {
@@ -30,7 +32,7 @@ const (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&project.SkillsDirOverride, "dir", "", "override the skills directory (default .agents/skills)")
+	rootCmd.PersistentFlags().StringVar(&flagDir, "dir", "", "override the skills directory (default .agents/skills)")
 
 	rootCmd.AddGroup(
 		&cobra.Group{ID: groupLibrary, Title: "Library:"},

@@ -6,38 +6,40 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/nattergabriel/reseed/internal/library"
-	"github.com/nattergabriel/reseed/internal/project"
-	"github.com/nattergabriel/reseed/internal/skill"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func runLibrary(cmd *cobra.Command, args []string) error {
-	lib, err := library.Open()
+func runTUI(cmd *cobra.Command, args []string) error {
+	lib, err := reseed.OpenLibrary()
 	if err != nil {
 		return err
 	}
 
-	entries, err := lib.ListSkillEntries()
-	if err != nil {
-		return err
-	}
-
-	if len(entries) == 0 {
+	if len(lib.Skills) == 0 {
 		fmt.Println("No skills in library.")
 		return nil
 	}
 
-	installed, err := project.InstalledSet()
+	proj, err := reseed.OpenProject(flagDir)
 	if err != nil {
 		return err
 	}
 
-	m := libraryModel{
-		items:     buildItems(entries),
-		lib:       lib,
+	names, err := proj.Installed()
+	if err != nil {
+		return err
+	}
+	installed := make(map[string]bool, len(names))
+	for _, n := range names {
+		installed[n] = true
+	}
+
+	m := tuiModel{
+		items:     buildItems(lib.Skills),
+		proj:      proj,
 		installed: installed,
 	}
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -45,32 +47,33 @@ func runLibrary(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-// libraryItem is one top-level row: a skill, or a folder with its member skills.
-type libraryItem struct {
+// tuiItem is one top-level row: a skill, or a folder with its member skills.
+type tuiItem struct {
 	name     string
-	skills   []string // nil for a plain skill
+	skill    reseed.Skill   // valid when this row is a plain skill
+	skills   []reseed.Skill // folder members; nil for a plain skill
 	expanded bool
 }
 
-func (it libraryItem) isFolder() bool {
+func (it tuiItem) isFolder() bool {
 	return it.skills != nil
 }
 
-// buildItems converts entries into a single alphabetical list of top-level
-// skills and folders. Entries arrive sorted by group, so folder members can
-// be collected by adjacency.
-func buildItems(entries []skill.SkillEntry) []libraryItem {
-	var items []libraryItem
-	for _, e := range entries {
-		if e.Group == "" {
-			items = append(items, libraryItem{name: e.Name})
+// buildItems converts skills into a single alphabetical list of top-level
+// skills and folders. Skills arrive sorted by group, so folder members can be
+// collected by adjacency.
+func buildItems(skills []reseed.Skill) []tuiItem {
+	var items []tuiItem
+	for _, s := range skills {
+		if s.Group == "" {
+			items = append(items, tuiItem{name: s.Name, skill: s})
 			continue
 		}
-		if len(items) == 0 || items[len(items)-1].name != e.Group {
-			items = append(items, libraryItem{name: e.Group, skills: []string{}})
+		if len(items) == 0 || items[len(items)-1].name != s.Group {
+			items = append(items, tuiItem{name: s.Group, skills: []reseed.Skill{}})
 		}
 		last := &items[len(items)-1]
-		last.skills = append(last.skills, e.Name)
+		last.skills = append(last.skills, s)
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].name < items[j].name })
 	return items
@@ -82,20 +85,20 @@ type visibleItem struct {
 	childIdx int // index into the folder's skills; -1 for the item row itself
 }
 
-type libraryModel struct {
-	items []libraryItem
+type tuiModel struct {
+	items []tuiItem
 
 	cursor int
 	offset int
 
 	height    int
-	lib       *library.Library
+	proj      reseed.Project
 	installed map[string]bool
 	status    string
 	statusErr bool
 }
 
-func (m libraryModel) visibleItems() []visibleItem {
+func (m tuiModel) visibleItems() []visibleItem {
 	var rows []visibleItem
 	for i, it := range m.items {
 		rows = append(rows, visibleItem{itemIdx: i, childIdx: -1})
@@ -108,23 +111,23 @@ func (m libraryModel) visibleItems() []visibleItem {
 	return rows
 }
 
-// skillName returns the skill a row refers to, or "" if the row is a folder.
-func (m libraryModel) skillName(row visibleItem) string {
+// skillAt returns the skill a row refers to; ok is false for folder rows.
+func (m tuiModel) skillAt(row visibleItem) (reseed.Skill, bool) {
 	it := m.items[row.itemIdx]
 	if row.childIdx >= 0 {
-		return it.skills[row.childIdx]
+		return it.skills[row.childIdx], true
 	}
 	if it.isFolder() {
-		return ""
+		return reseed.Skill{}, false
 	}
-	return it.name
+	return it.skill, true
 }
 
-func (m libraryModel) Init() tea.Cmd {
+func (m tuiModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -160,7 +163,7 @@ func (m libraryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // toggleFold expands or collapses the folder under the cursor. On a skill
 // inside an expanded folder it collapses that folder and moves the cursor to
 // the folder row. On a plain skill it does nothing.
-func (m *libraryModel) toggleFold() {
+func (m *tuiModel) toggleFold() {
 	rows := m.visibleItems()
 	if len(rows) == 0 {
 		return
@@ -181,80 +184,80 @@ func (m *libraryModel) toggleFold() {
 	}
 }
 
-func (m *libraryModel) toggleCurrent() {
+func (m *tuiModel) toggleCurrent() {
 	rows := m.visibleItems()
 	if len(rows) == 0 {
 		return
 	}
 	row := rows[m.cursor]
-	if name := m.skillName(row); name != "" {
-		m.toggleSkill(name)
+	if s, ok := m.skillAt(row); ok {
+		m.toggleSkill(s)
 	} else {
 		m.toggleFolder(row.itemIdx)
 	}
 }
 
-func (m *libraryModel) toggleFolder(idx int) {
+func (m *tuiModel) toggleFolder(idx int) {
 	folder := m.items[idx]
 	if m.isFolderFullyInstalled(folder) {
-		for _, name := range folder.skills {
-			if err := project.RemoveSkill(name); err != nil {
-				m.status = fmt.Sprintf("Error removing %s: %s", name, err)
+		for _, s := range folder.skills {
+			if err := m.proj.Remove(s.Name); err != nil {
+				m.status = fmt.Sprintf("Error removing %s: %s", s.Name, err)
 				m.statusErr = true
 				return
 			}
-			delete(m.installed, name)
+			delete(m.installed, s.Name)
 		}
 		m.status = fmt.Sprintf("Removed %d %s from %s", len(folder.skills), skillNoun(len(folder.skills)), folder.name)
 		return
 	}
 
 	var added int
-	for _, name := range folder.skills {
-		if m.installed[name] {
+	for _, s := range folder.skills {
+		if m.installed[s.Name] {
 			continue
 		}
-		if err := project.AddSkill(m.lib, name); err != nil {
-			m.status = fmt.Sprintf("Error adding %s: %s", name, err)
+		if err := m.proj.Add(s); err != nil {
+			m.status = fmt.Sprintf("Error adding %s: %s", s.Name, err)
 			m.statusErr = true
 			return
 		}
-		m.installed[name] = true
+		m.installed[s.Name] = true
 		added++
 	}
 	m.status = fmt.Sprintf("Added %d %s from %s", added, skillNoun(added), folder.name)
 }
 
-func (m *libraryModel) toggleSkill(name string) {
-	if m.installed[name] {
-		if err := project.RemoveSkill(name); err != nil {
+func (m *tuiModel) toggleSkill(s reseed.Skill) {
+	if m.installed[s.Name] {
+		if err := m.proj.Remove(s.Name); err != nil {
 			m.status = err.Error()
 			m.statusErr = true
 			return
 		}
-		delete(m.installed, name)
-		m.status = fmt.Sprintf("Removed %s", name)
+		delete(m.installed, s.Name)
+		m.status = fmt.Sprintf("Removed %s", s.Name)
 	} else {
-		if err := project.AddSkill(m.lib, name); err != nil {
+		if err := m.proj.Add(s); err != nil {
 			m.status = err.Error()
 			m.statusErr = true
 			return
 		}
-		m.installed[name] = true
-		m.status = fmt.Sprintf("Added %s", name)
+		m.installed[s.Name] = true
+		m.status = fmt.Sprintf("Added %s", s.Name)
 	}
 }
 
-func (m libraryModel) isFolderFullyInstalled(folder libraryItem) bool {
+func (m tuiModel) isFolderFullyInstalled(folder tuiItem) bool {
 	for _, s := range folder.skills {
-		if !m.installed[s] {
+		if !m.installed[s.Name] {
 			return false
 		}
 	}
 	return true
 }
 
-func (m *libraryModel) clampOffset() {
+func (m *tuiModel) clampOffset() {
 	available := m.viewHeight()
 	if m.cursor < m.offset {
 		m.offset = m.cursor
@@ -264,26 +267,27 @@ func (m *libraryModel) clampOffset() {
 	}
 }
 
-func (m libraryModel) availableHeight(header, footer string) int {
-	chrome := lipgloss.Height(header) + lipgloss.Height(footer) + 2
+// viewHeight is the number of content lines that fit between the fixed-size
+// header and footer.
+func (m tuiModel) viewHeight() int {
+	chrome := 2 + 1 + 2 // header, footer, blank separators
+	if m.status != "" {
+		chrome++
+	}
 	if available := m.height - chrome; available > 1 {
 		return available
 	}
 	return 1
 }
 
-func (m libraryModel) viewHeight() int {
-	return m.availableHeight(m.renderHeader(), m.renderFooter())
-}
-
-func (m libraryModel) contextualAction() string {
+func (m tuiModel) contextualAction() string {
 	rows := m.visibleItems()
 	if len(rows) == 0 {
 		return "add"
 	}
 	row := rows[m.cursor]
-	if name := m.skillName(row); name != "" {
-		if m.installed[name] {
+	if s, ok := m.skillAt(row); ok {
+		if m.installed[s.Name] {
 			return "remove"
 		}
 		return "add"
@@ -297,7 +301,6 @@ func (m libraryModel) contextualAction() string {
 var (
 	styleFolder      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))
 	styleFolderCount = lipgloss.NewStyle().Faint(true)
-	styleSkill       = lipgloss.NewStyle()
 	styleCursor      = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styleInstalled   = lipgloss.NewStyle().Faint(true)
 	styleCheck       = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
@@ -309,11 +312,11 @@ var (
 	styleSeparator   = lipgloss.NewStyle().Faint(true)
 )
 
-func (m libraryModel) folderCountInfo(folder libraryItem) string {
+func (m tuiModel) folderCountInfo(folder tuiItem) string {
 	total := len(folder.skills)
 	var count int
 	for _, s := range folder.skills {
-		if m.installed[s] {
+		if m.installed[s.Name] {
 			count++
 		}
 	}
@@ -323,14 +326,12 @@ func (m libraryModel) folderCountInfo(folder libraryItem) string {
 	return fmt.Sprintf("(%d/%d added)", count, total)
 }
 
-func (m libraryModel) renderHeader() string {
+func (m tuiModel) renderHeader() string {
 	return fmt.Sprintf("  %s\n%s", styleTitle.Render("Library"), styleSeparator.Render("  ────────────────"))
 }
 
-func (m libraryModel) View() string {
-	header := m.renderHeader()
-	footer := m.renderFooter()
-	available := m.availableHeight(header, footer)
+func (m tuiModel) View() string {
+	available := m.viewHeight()
 
 	lines := m.renderItems()
 	start := m.offset
@@ -343,11 +344,11 @@ func (m libraryModel) View() string {
 	}
 
 	content := strings.Join(lines[start:end], "\n")
-	view := lipgloss.JoinVertical(lipgloss.Left, header, "", content, "", footer)
+	view := lipgloss.JoinVertical(lipgloss.Left, m.renderHeader(), "", content, "", m.renderFooter())
 	return lipgloss.NewStyle().Height(m.height).Render(view)
 }
 
-func (m libraryModel) renderItems() []string {
+func (m tuiModel) renderItems() []string {
 	rows := m.visibleItems()
 	lines := make([]string, len(rows))
 	for i, row := range rows {
@@ -356,7 +357,7 @@ func (m libraryModel) renderItems() []string {
 	return lines
 }
 
-func (m libraryModel) renderRow(row visibleItem, selected bool) string {
+func (m tuiModel) renderRow(row visibleItem, selected bool) string {
 	it := m.items[row.itemIdx]
 
 	if it.isFolder() && row.childIdx == -1 {
@@ -376,7 +377,7 @@ func (m libraryModel) renderRow(row visibleItem, selected bool) string {
 		)
 	}
 
-	name := m.skillName(row)
+	s, _ := m.skillAt(row)
 	indent := ""
 	if row.childIdx >= 0 {
 		indent = "  " // skills inside an expanded folder
@@ -386,32 +387,30 @@ func (m libraryModel) renderRow(row visibleItem, selected bool) string {
 		cursor = styleCursor.Render("> ")
 	}
 	check := "  "
-	nameStyle := styleSkill
-	if m.installed[name] {
+	name := s.Name
+	if m.installed[s.Name] {
 		check = styleCheck.Render("✓ ")
-		nameStyle = styleInstalled
+		name = styleInstalled.Render(name)
 	}
-	return fmt.Sprintf("%s%s%s%s", indent, cursor, check, nameStyle.Render(name))
+	return fmt.Sprintf("%s%s%s%s", indent, cursor, check, name)
 }
 
 func footerItem(key, desc string) string {
 	return styleFooterKey.Render(key) + styleFooter.Render(" "+desc)
 }
 
-func (m libraryModel) renderFooter() string {
+func (m tuiModel) renderFooter() string {
 	sep := styleFooter.Render("  ")
 	parts := []string{footerItem("esc", "quit")}
 
 	if rows := m.visibleItems(); len(rows) > 0 {
 		row := rows[m.cursor]
-		it := m.items[row.itemIdx]
-		switch {
-		case it.isFolder() && row.childIdx == -1 && it.expanded:
-			parts = append(parts, footerItem("enter", "collapse"))
-		case it.isFolder() && row.childIdx == -1:
-			parts = append(parts, footerItem("enter", "expand"))
-		case row.childIdx >= 0:
-			parts = append(parts, footerItem("enter", "collapse"))
+		if it := m.items[row.itemIdx]; it.isFolder() {
+			hint := "expand"
+			if it.expanded {
+				hint = "collapse"
+			}
+			parts = append(parts, footerItem("enter", hint))
 		}
 	}
 

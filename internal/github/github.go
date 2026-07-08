@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nattergabriel/reseed/internal/skill"
+	"github.com/nattergabriel/reseed/internal/reseed"
 )
 
 type Client struct {
@@ -147,7 +147,7 @@ func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedS
 			data:     data,
 		})
 
-		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == skill.MarkerFile {
+		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == reseed.MarkerFile {
 			skillDir := filepath.Dir(name)
 			skillName := filepath.Base(skillDir)
 

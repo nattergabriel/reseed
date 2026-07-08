@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/nattergabriel/reseed/internal/github"
-	"github.com/nattergabriel/reseed/internal/library"
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ Examples:
   reseed install user/repo/src/skills --into kit      # install into a subfolder`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lib, err := library.Open()
+		lib, err := reseed.OpenLibrary()
 		if err != nil {
 			return err
 		}
