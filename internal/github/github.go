@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,15 +49,10 @@ func apiError(status int, repo string) error {
 	}
 }
 
-// ExtractedSkill is the result of a successful skill extraction.
-type ExtractedSkill struct {
-	Name string // directory name, e.g. "commit"
-}
-
 // FetchSkills downloads the repo's default-branch tarball and extracts skill
-// directories into destDir. If ref.Path is set, only skills at or under that
-// path are extracted.
-func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string) ([]ExtractedSkill, error) {
+// directories into destDir, flattened as destDir/<name>/. If ref.Path is set,
+// only skills at or under that path are extracted. Returns the skill names.
+func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string) ([]string, error) {
 	tarURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/tarball", ref.Owner, ref.Repo)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", tarURL, nil)
@@ -77,131 +73,102 @@ func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string)
 	return extractSkills(resp.Body, destDir, ref.Path)
 }
 
-// extractSkills reads a tar.gz stream and extracts skill directories.
-// The tarball root is "{owner}-{repo}-{sha}/", which gets stripped.
-// A skill is any directory containing a SKILL.md file.
-// Skills are flattened into destDir/<skillname>/.
-//
-// filterPath scopes extraction:
-//   - "" extracts all skills in the repo
-//   - "src/skills/commit" extracts only the skill at that exact path
-//   - "src/skills" extracts all skills found under that directory
-func extractSkills(r io.Reader, destDir string, filterPath string) ([]ExtractedSkill, error) {
+// extractSkills streams a repo tarball into a temp directory, then finds and
+// copies skills with the same domain code used everywhere else.
+func extractSkills(r io.Reader, destDir, filterPath string) ([]string, error) {
+	tmp, err := os.MkdirTemp("", "reseed-*")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+
+	if err := untar(r, tmp, filterPath); err != nil {
+		return nil, err
+	}
+
+	root := filepath.Join(tmp, filepath.FromSlash(filterPath))
+	var found []reseed.Skill
+	if reseed.IsSkill(root) {
+		found = []reseed.Skill{{Name: filepath.Base(root), Path: root}}
+	} else if found, err = reseed.FindSkills(root); err != nil {
+		return nil, err
+	}
+	if len(found) == 0 && filterPath != "" {
+		return nil, fmt.Errorf("no skills found under %q", filterPath)
+	}
+
+	var names []string
+	for _, s := range found {
+		if err := reseed.CopySkill(s.Path, filepath.Join(destDir, s.Name)); err != nil {
+			return nil, err
+		}
+		names = append(names, s.Name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// untar extracts a tar.gz stream into dst, stripping the tarball's root
+// directory ("{owner}-{repo}-{sha}/"). If filterPath is set, only entries at
+// or under it are extracted.
+func untar(r io.Reader, dst, filterPath string) error {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("decompressing: %w", err)
+		return fmt.Errorf("decompressing: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
 
 	tr := tar.NewReader(gz)
-
-	type entry struct {
-		name     string // path after stripping tarball root
-		typeflag byte
-		mode     int64
-		data     []byte
-	}
-	var entries []entry
-
-	// skillDirs maps "path/to/skillname/" -> skill name
-	// Built by finding SKILL.md files at any depth.
-	skillDirs := make(map[string]string)
-
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
-			break
+			return nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("reading tar: %w", err)
+			return fmt.Errorf("reading tar: %w", err)
 		}
 
-		// Strip the root directory (e.g., "owner-repo-sha/")
-		name := hdr.Name
-		slashIdx := strings.Index(name, "/")
-		if slashIdx == -1 {
+		// Strip the root directory (e.g. "owner-repo-sha/")
+		idx := strings.Index(hdr.Name, "/")
+		if idx == -1 {
 			continue
 		}
-		name = name[slashIdx+1:]
+		name := hdr.Name[idx+1:]
 		if name == "" {
 			continue
 		}
-
-		// Skip entries clearly outside the filter scope to avoid buffering the whole repo
-		if filterPath != "" && !strings.HasPrefix(name, filterPath+"/") && name != filterPath {
+		if filterPath != "" && name != filterPath && !strings.HasPrefix(name, filterPath+"/") {
 			continue
 		}
 
-		var data []byte
-		if hdr.Typeflag == tar.TypeReg {
-			data, err = io.ReadAll(tr)
-			if err != nil {
-				return nil, fmt.Errorf("reading %s: %w", name, err)
-			}
+		path := filepath.Join(dst, filepath.FromSlash(name))
+		if !strings.HasPrefix(path, dst+string(os.PathSeparator)) {
+			continue // entry escapes dst (e.g. "..") — ignore it
 		}
 
-		entries = append(entries, entry{
-			name:     name,
-			typeflag: hdr.Typeflag,
-			mode:     hdr.Mode,
-			data:     data,
-		})
-
-		if hdr.Typeflag == tar.TypeReg && filepath.Base(name) == reseed.MarkerFile {
-			skillDir := filepath.Dir(name)
-			skillName := filepath.Base(skillDir)
-
-			// Apply path filter: only include skills at or under filterPath
-			if filterPath != "" && skillDir != filterPath && !strings.HasPrefix(skillDir, filterPath+"/") {
-				continue
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(path, 0o755); err != nil {
+				return err
 			}
-
-			skillDirs[skillDir+"/"] = skillName
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return err
+			}
+			if err := writeFile(path, tr); err != nil {
+				return err
+			}
 		}
 	}
+}
 
-	if filterPath != "" && len(skillDirs) == 0 {
-		return nil, fmt.Errorf("no skills found under %q", filterPath)
+func writeFile(path string, r io.Reader) (err error) {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
+	defer func() { err = errors.Join(err, f.Close()) }()
 
-	// Extract files belonging to skill directories, flattening into destDir/skillname/
-	extracted := make(map[string]bool)
-
-	for _, e := range entries {
-		for prefix, skillName := range skillDirs {
-			if !strings.HasPrefix(e.name, prefix) && e.name != strings.TrimSuffix(prefix, "/") {
-				continue
-			}
-
-			// Compute the path relative to the skill directory
-			relPath := strings.TrimPrefix(e.name, prefix)
-			destPath := filepath.Join(destDir, skillName, relPath)
-
-			switch e.typeflag {
-			case tar.TypeDir:
-				if err := os.MkdirAll(destPath, 0o755); err != nil {
-					return nil, err
-				}
-			case tar.TypeReg:
-				if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-					return nil, err
-				}
-				if err := os.WriteFile(destPath, e.data, os.FileMode(e.mode).Perm()); err != nil {
-					return nil, err
-				}
-			}
-
-			extracted[skillName] = true
-			break
-		}
-	}
-
-	skills := make([]ExtractedSkill, 0, len(extracted))
-	for name := range extracted {
-		skills = append(skills, ExtractedSkill{Name: name})
-	}
-	sort.Slice(skills, func(i, j int) bool {
-		return skills[i].Name < skills[j].Name
-	})
-	return skills, nil
+	_, err = io.Copy(f, r)
+	return err
 }

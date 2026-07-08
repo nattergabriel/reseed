@@ -47,7 +47,7 @@ reseed init ~/my-skills-library
 Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from GitHub with a `user/repo[/path]` reference. Organize your library however you like: subfolders at any depth are fine, and `--into` puts installed skills where you want them.
 
 ```bash
-reseed install pbakaus/impeccable/source/skills --into impeccable
+reseed install pbakaus/impeccable/.agents/skills --into impeccable
 ```
 
 ### 3. Browse and manage your library

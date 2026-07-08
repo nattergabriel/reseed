@@ -55,7 +55,7 @@ Examples:
 				source += "/" + ref.Path
 			}
 
-			var skills []github.ExtractedSkill
+			var skills []string
 			err = spinner.New().
 				Title(fmt.Sprintf("  Fetching %s...", source)).
 				ActionWithErr(func(ctx context.Context) error {
@@ -69,7 +69,7 @@ Examples:
 			}
 
 			for _, s := range skills {
-				fmt.Printf("  + %s\n", s.Name)
+				fmt.Printf("  + %s\n", s)
 			}
 			total += len(skills)
 		}
