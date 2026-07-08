@@ -16,26 +16,6 @@ import (
 	"github.com/nattergabriel/reseed/internal/reseed"
 )
 
-type Client struct {
-	HTTPClient *http.Client
-	Token      string
-}
-
-func NewClient() *Client {
-	return &Client{
-		HTTPClient: http.DefaultClient,
-		Token:      os.Getenv("GITHUB_TOKEN"),
-	}
-}
-
-func (c *Client) do(req *http.Request) (*http.Response, error) {
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-	return c.HTTPClient.Do(req)
-}
-
 func apiError(status int, repo string) error {
 	switch status {
 	case http.StatusNotFound:
@@ -52,15 +32,19 @@ func apiError(status int, repo string) error {
 // FetchSkills downloads the repo's default-branch tarball and extracts skill
 // directories into destDir, flattened as destDir/<name>/. If ref.Path is set,
 // only skills at or under that path are extracted. Returns the skill names.
-func (c *Client) FetchSkills(ctx context.Context, ref *SkillRef, destDir string) ([]string, error) {
+func FetchSkills(ctx context.Context, ref SkillRef, destDir string) ([]string, error) {
 	tarURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/tarball", ref.Owner, ref.Repo)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", tarURL, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
-	resp, err := c.do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("downloading %s/%s: %w", ref.Owner, ref.Repo, err)
 	}

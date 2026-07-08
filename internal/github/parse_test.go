@@ -29,8 +29,8 @@ func TestParseRef(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if *got != tt.want {
-				t.Errorf("got %+v, want %+v", *got, tt.want)
+			if got != tt.want {
+				t.Errorf("got %+v, want %+v", got, tt.want)
 			}
 		})
 	}

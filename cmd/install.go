@@ -36,7 +36,6 @@ Examples:
 		}
 
 		into, _ := cmd.Flags().GetString("into")
-		client := github.NewClient()
 
 		destDir := lib.SkillsDir()
 		if into != "" {
@@ -60,7 +59,7 @@ Examples:
 				Title(fmt.Sprintf("  Fetching %s...", source)).
 				ActionWithErr(func(ctx context.Context) error {
 					var ferr error
-					skills, ferr = client.FetchSkills(ctx, ref, destDir)
+					skills, ferr = github.FetchSkills(ctx, ref, destDir)
 					return ferr
 				}).
 				Run()
