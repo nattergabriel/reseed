@@ -12,34 +12,21 @@ var addCmd = &cobra.Command{
 	Use:     "add <skills or folders...>",
 	Short:   "Add skills or folders to the current project",
 	GroupID: groupProject,
-	Long:    "Copies skills from your library into the project's .agents/skills/ directory. Naming a library folder adds every skill under it. Use --all to add every skill in your library.",
+	Long:    "Copies skills from your library into the project's .agents/skills/ directory. Naming a library folder adds every skill under it.",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		all, _ := cmd.Flags().GetBool("all")
-
 		lib, err := library.Open()
 		if err != nil {
 			return err
 		}
 
 		var skills []string
-		if all {
-			skills, err = lib.ListSkills()
+		for _, arg := range args {
+			resolved, err := lib.Resolve(arg)
 			if err != nil {
 				return err
 			}
-			if len(skills) == 0 {
-				fmt.Println("No skills in library.")
-				return nil
-			}
-		} else {
-			for _, arg := range args {
-				resolved, err := lib.Resolve(arg)
-				if err != nil {
-					return err
-				}
-				skills = append(skills, resolved...)
-			}
+			skills = append(skills, resolved...)
 		}
 
 		for _, name := range skills {
@@ -56,5 +43,4 @@ var addCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(addCmd)
-	addCmd.Flags().Bool("all", false, "Add all skills from the library")
 }

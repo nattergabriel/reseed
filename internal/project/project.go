@@ -22,6 +22,9 @@ func SkillsPath() (string, error) {
 	} else if cfg, err := config.LoadGlobal(); err == nil && cfg.Dir != "" {
 		dir = cfg.Dir
 	}
+	if filepath.IsAbs(dir) {
+		return dir, nil
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getting working directory: %w", err)
@@ -99,14 +102,20 @@ func SyncSkills(lib *library.Library) ([]string, error) {
 		return nil, err
 	}
 	pathByName := make(map[string]string, len(entries))
+	ambiguous := make(map[string]bool)
 	for _, e := range entries {
-		if _, exists := pathByName[e.Name]; !exists {
-			pathByName[e.Name] = e.Path
+		if _, exists := pathByName[e.Name]; exists {
+			ambiguous[e.Name] = true
+			continue
 		}
+		pathByName[e.Name] = e.Path
 	}
 
 	var updated []string
 	for _, name := range installed {
+		if ambiguous[name] {
+			return updated, fmt.Errorf("skill %q is ambiguous in the library, not syncing it", name)
+		}
 		srcPath, ok := pathByName[name]
 		if !ok {
 			continue

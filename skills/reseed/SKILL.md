@@ -19,7 +19,6 @@ reseed init <path>                  # create a new library (first-time setup)
 reseed status                       # what's installed in this project
 reseed list -l                      # what's in the user's library (with descriptions)
 reseed add <skills-or-folders...>   # copy skills (or whole folders) from library into the project
-reseed add --all                    # add every skill from the library
 reseed remove <skills...>           # remove skills from the project
 reseed sync                         # re-copy installed skills from library (get updates)
 reseed install <user/repo>          # fetch skills from GitHub into the library
@@ -70,7 +69,6 @@ This shows all skills in the user's library, grouped by folder, with description
 
 ```bash
 reseed add commit review python-base   # mix skills and folders in one command
-reseed add --all                       # or just add everything
 ```
 
 You can pass any number of skills and library folders in a single `reseed add` command; naming a folder adds every skill under it. Pick what matches the project's stack and needs.
