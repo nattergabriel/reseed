@@ -37,11 +37,11 @@ func List(parentDir string) ([]string, error) {
 	return skills, nil
 }
 
-// SkillEntry represents a skill found in the library, potentially inside a pack.
+// SkillEntry represents a skill found in the library.
 type SkillEntry struct {
-	Name string // leaf directory name, e.g. "commit"
-	Pack string // pack name, empty for standalone skills
-	Path string // full filesystem path to the skill directory
+	Name  string // leaf directory name, e.g. "commit"
+	Group string // relative path of the containing folder, empty for top-level skills
+	Path  string // full filesystem path to the skill directory
 }
 
 // ReadDescription extracts the description field from a SKILL.md frontmatter.
@@ -69,53 +69,51 @@ func ReadDescription(skillDir string) string {
 	return ""
 }
 
-// ListNested scans parentDir for skills at two levels: standalone skills directly
-// in parentDir, and skills inside pack subdirectories. A subdirectory that is not
-// itself a skill but contains skill children is treated as a pack.
-func ListNested(parentDir string) ([]SkillEntry, error) {
-	entries, err := os.ReadDir(parentDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("reading directory %s: %w", parentDir, err)
-	}
-
+// ListAll walks parentDir recursively and returns every skill found at any
+// depth. Folders above a skill are just organization; the walk does not
+// descend into skill directories themselves.
+func ListAll(parentDir string) ([]SkillEntry, error) {
 	var skills []SkillEntry
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		dirPath := filepath.Join(parentDir, e.Name())
-
-		if IsSkill(dirPath) {
-			skills = append(skills, SkillEntry{
-				Name: e.Name(),
-				Path: dirPath,
-			})
-			continue
-		}
-
-		// Check if this is a pack (non-skill dir containing skills)
-		children, err := os.ReadDir(dirPath)
+	var walk func(dir, group string) error
+	walk = func(dir, group string) error {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
-			continue
+			return fmt.Errorf("reading directory %s: %w", dir, err)
 		}
-		for _, child := range children {
-			childPath := filepath.Join(dirPath, child.Name())
-			if child.IsDir() && IsSkill(childPath) {
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			dirPath := filepath.Join(dir, e.Name())
+			if IsSkill(dirPath) {
 				skills = append(skills, SkillEntry{
-					Name: child.Name(),
-					Pack: e.Name(),
-					Path: childPath,
+					Name:  e.Name(),
+					Group: group,
+					Path:  dirPath,
 				})
+				continue
+			}
+			childGroup := e.Name()
+			if group != "" {
+				childGroup = group + "/" + e.Name()
+			}
+			if err := walk(dirPath, childGroup); err != nil {
+				return err
 			}
 		}
+		return nil
+	}
+
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err := walk(parentDir, ""); err != nil {
+		return nil, err
 	}
 
 	sort.Slice(skills, func(i, j int) bool {
-		if skills[i].Pack != skills[j].Pack {
-			return skills[i].Pack < skills[j].Pack
+		if skills[i].Group != skills[j].Group {
+			return skills[i].Group < skills[j].Group
 		}
 		return skills[i].Name < skills[j].Name
 	})

@@ -16,7 +16,7 @@ var syncCmd = &cobra.Command{
 	Use:     "sync",
 	Short:   "Sync project skills from your library",
 	GroupID: groupProject,
-	Long:  "Re-copies skills from the library into the project. Matches by name — skills not in the library are left untouched.",
+	Long:    "Re-copies skills from the library into the project. Matches by name — skills not in the library are left untouched.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
 		if err != nil {

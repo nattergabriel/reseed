@@ -97,25 +97,43 @@ func TestReadDescription(t *testing.T) {
 	}
 }
 
-func TestListNested(t *testing.T) {
+func TestListAll(t *testing.T) {
 	dir := t.TempDir()
 
 	createSkill(t, dir, "standalone")
-	packDir := filepath.Join(dir, "mypack")
-	createSkill(t, packDir, "inpack")
+	createSkill(t, filepath.Join(dir, "kit"), "shallow")
+	createSkill(t, filepath.Join(dir, "kit", "frontend"), "deep")
+	// A folder inside a skill must not be scanned as a group
+	createSkill(t, filepath.Join(dir, "standalone", "templates"), "not-a-skill")
 
-	entries, err := ListNested(dir)
+	entries, err := ListAll(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("got %d entries, want 2", len(entries))
+
+	want := []struct{ name, group string }{
+		{"standalone", ""},
+		{"shallow", "kit"},
+		{"deep", "kit/frontend"},
 	}
-	if entries[0].Name != "standalone" || entries[0].Pack != "" {
-		t.Errorf("got %+v, want {Name: standalone, Pack: \"\"}", entries[0])
+	if len(entries) != len(want) {
+		t.Fatalf("got %d entries %v, want %d", len(entries), entries, len(want))
 	}
-	if entries[1].Name != "inpack" || entries[1].Pack != "mypack" {
-		t.Errorf("got %+v, want {Name: inpack, Pack: mypack}", entries[1])
+	for i, w := range want {
+		if entries[i].Name != w.name || entries[i].Group != w.group {
+			t.Errorf("entry %d: got {Name: %s, Group: %s}, want {Name: %s, Group: %s}",
+				i, entries[i].Name, entries[i].Group, w.name, w.group)
+		}
+	}
+}
+
+func TestListAll_NonExistent(t *testing.T) {
+	entries, err := ListAll(filepath.Join(t.TempDir(), "nope"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if entries != nil {
+		t.Errorf("expected nil, got %v", entries)
 	}
 }
 

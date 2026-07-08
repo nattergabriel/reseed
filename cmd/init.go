@@ -15,8 +15,8 @@ var initCmd = &cobra.Command{
 	Use:     "init [path]",
 	Short:   "Initialize a skill library",
 	GroupID: groupLibrary,
-	Long:  "Creates a skill library at the given path (or current directory), or recognizes an existing one.",
-	Args:  cobra.MaximumNArgs(1),
+	Long:    "Creates a skill library at the given path (or current directory), or recognizes an existing one.",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := "."
 		if len(args) > 0 {

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	installCmd.Flags().StringP("pack", "p", "", "install skills into a pack directory")
+	installCmd.Flags().String("into", "", "install skills into a library subfolder")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -23,11 +23,11 @@ var installCmd = &cobra.Command{
 	Long: `Downloads skills from GitHub repositories and adds them to your library.
 
 Examples:
-  reseed install user/repo                    # all skills from the repo
-  reseed install user/repo/src/skills/commit  # one specific skill
-  reseed install user/repo/src/skills         # all skills under a directory
-  reseed install user/repo user2/repo2        # multiple sources at once
-  reseed install user/repo/src/skills -p kit  # install into a pack`,
+  reseed install user/repo                            # all skills from the repo
+  reseed install user/repo/src/skills/commit          # one specific skill
+  reseed install user/repo/src/skills                 # all skills under a directory
+  reseed install user/repo user2/repo2                # multiple sources at once
+  reseed install user/repo/src/skills --into kit      # install into a subfolder`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := library.Open()
@@ -35,12 +35,12 @@ Examples:
 			return err
 		}
 
-		packName, _ := cmd.Flags().GetString("pack")
+		into, _ := cmd.Flags().GetString("into")
 		client := github.NewClient()
 
 		destDir := lib.SkillsDir()
-		if packName != "" {
-			destDir = filepath.Join(lib.SkillsDir(), packName)
+		if into != "" {
+			destDir = filepath.Join(lib.SkillsDir(), into)
 		}
 
 		var total int

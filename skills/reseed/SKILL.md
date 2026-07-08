@@ -18,7 +18,7 @@ reseed                              # interactive TUI (for the user to run, not 
 reseed init <path>                  # create a new library (first-time setup)
 reseed status                       # what's installed in this project
 reseed list -l                      # what's in the user's library (with descriptions)
-reseed add <skills-or-packs...>     # copy skills/packs from library into the project
+reseed add <skills-or-folders...>   # copy skills (or whole folders) from library into the project
 reseed add --all                    # add every skill from the library
 reseed remove <skills...>           # remove skills from the project
 reseed sync                         # re-copy installed skills from library (get updates)
@@ -27,7 +27,7 @@ reseed install <user/repo>          # fetch skills from GitHub into the library
 
 ## How it works
 
-- The user has a **library**: a directory on their machine containing all their skills. It can include **packs** (named groups of related skills).
+- The user has a **library**: a directory on their machine containing all their skills, organized in subfolders of any depth.
 - `reseed add` copies skills from the library into the project's skills directory. These are real file copies, not symlinks, so they show up in git and every team member gets them.
 - `reseed sync` re-copies skills that exist in both the project and the library, pulling in any updates. Skills not in the library are left alone, including orphans: if a skill was removed from the library after it was added to the project, `sync` will not delete the stale copy. Use `reseed remove` for that.
 - There's no project manifest. Sync matches by folder name.
@@ -64,16 +64,16 @@ If the skills directory doesn't exist yet, that's fine. reseed creates it automa
 reseed list -l
 ```
 
-This shows all skills and packs in the user's library with descriptions. Use this to understand what's available before suggesting what to add.
+This shows all skills in the user's library, grouped by folder, with descriptions. Use this to understand what's available before suggesting what to add.
 
 ### 3. Add skills to the project
 
 ```bash
-reseed add commit review python-base   # mix skills and packs in one command
+reseed add commit review python-base   # mix skills and folders in one command
 reseed add --all                       # or just add everything
 ```
 
-You can pass any number of skills and packs in a single `reseed add` command, reseed expands packs into their individual skills automatically. Pick what matches the project's stack and needs.
+You can pass any number of skills and library folders in a single `reseed add` command; naming a folder adds every skill under it. Pick what matches the project's stack and needs.
 
 ### 4. Keep skills up to date
 
@@ -87,12 +87,12 @@ Run this when the user wants to pull the latest versions of their skills into th
 
 `install` and `add` do different things:
 - `reseed install` fetches from GitHub into the user's **library**. It takes a `user/repo[/path]` reference, not a URL. It always fetches the repo's default branch.
-- `reseed add` copies from the library into the **project**. It takes local skill or pack names.
+- `reseed add` copies from the library into the **project**. It takes local skill names or library folder paths.
 
 ```bash
 reseed install user/repo                 # all skills from the repo
 reseed install user/repo/path/to/skills  # skills under a specific directory
-reseed install user/repo --pack mypack   # group them into a pack
+reseed install user/repo --into mykit    # place them in a library subfolder
 ```
 
 After installing, use `reseed add` to bring them into the project.

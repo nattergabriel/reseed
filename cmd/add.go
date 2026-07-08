@@ -9,10 +9,10 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:     "add <skills or packs...>",
-	Short:   "Add skills or packs to the current project",
+	Use:     "add <skills or folders...>",
+	Short:   "Add skills or folders to the current project",
 	GroupID: groupProject,
-	Long:    "Copies skills or packs from your library into the project's .agents/skills/ directory. Use --all to add every skill in your library.",
+	Long:    "Copies skills from your library into the project's .agents/skills/ directory. Naming a library folder adds every skill under it. Use --all to add every skill in your library.",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		all, _ := cmd.Flags().GetBool("all")
@@ -34,7 +34,7 @@ var addCmd = &cobra.Command{
 			}
 		} else {
 			for _, arg := range args {
-				resolved, err := lib.ResolveSkillOrPack(arg)
+				resolved, err := lib.Resolve(arg)
 				if err != nil {
 					return err
 				}

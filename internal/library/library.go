@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nattergabriel/reseed/internal/config"
 	"github.com/nattergabriel/reseed/internal/skill"
@@ -63,11 +64,11 @@ func (l *Library) ListSkills() ([]string, error) {
 }
 
 func (l *Library) ListSkillEntries() ([]skill.SkillEntry, error) {
-	return skill.ListNested(l.SkillsDir())
+	return skill.ListAll(l.SkillsDir())
 }
 
-// FindSkill locates a skill by name, preferring standalone skills over
-// pack members. Returns an error if ambiguous or not found.
+// FindSkill locates a skill by name. Skill names must be unique across the
+// library; returns an error if ambiguous or not found.
 func (l *Library) FindSkill(name string) (*skill.SkillEntry, error) {
 	entries, err := l.ListSkillEntries()
 	if err != nil {
@@ -87,17 +88,15 @@ func (l *Library) FindSkill(name string) (*skill.SkillEntry, error) {
 	case 1:
 		return &matches[0], nil
 	default:
-		// Check if one is standalone (preferred)
+		var locations []string
 		for _, m := range matches {
-			if m.Pack == "" {
-				return &m, nil
+			location := m.Name
+			if m.Group != "" {
+				location = m.Group + "/" + m.Name
 			}
+			locations = append(locations, location)
 		}
-		var packs []string
-		for _, m := range matches {
-			packs = append(packs, m.Pack)
-		}
-		return nil, fmt.Errorf("skill %q is ambiguous, found in packs: %v", name, packs)
+		return nil, fmt.Errorf("skill %q is ambiguous, found at: %v", name, locations)
 	}
 }
 
@@ -109,33 +108,33 @@ func (l *Library) SkillPath(name string) (string, error) {
 	return entry.Path, nil
 }
 
-// ResolveSkillOrPack resolves a name to a list of skill names.
-// If the name matches a pack directory, returns all skills in that pack.
-// Otherwise, returns the single skill name.
-func (l *Library) ResolveSkillOrPack(name string) ([]string, error) {
+// Resolve resolves a name to a list of skill names. A name matching a library
+// folder (by path relative to skills/) expands to every skill under it, at any
+// depth. Otherwise it must match a single skill name.
+func (l *Library) Resolve(name string) ([]string, error) {
 	entries, err := l.ListSkillEntries()
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if it's a pack
-	var packSkills []string
-	found := false
+	name = strings.Trim(name, "/")
+	var folderSkills []string
+	skillFound := false
 	for _, e := range entries {
-		if e.Pack == name {
-			packSkills = append(packSkills, e.Name)
-			found = true
-		} else if e.Name == name {
-			found = true
+		if e.Group == name || strings.HasPrefix(e.Group, name+"/") {
+			folderSkills = append(folderSkills, e.Name)
+		}
+		if e.Name == name {
+			skillFound = true
 		}
 	}
-	if len(packSkills) > 0 {
-		return packSkills, nil
+	if len(folderSkills) > 0 {
+		return folderSkills, nil
 	}
 
-	if found {
+	if skillFound {
 		return []string{name}, nil
 	}
 
-	return nil, fmt.Errorf("%q is not a skill or pack in your library", name)
+	return nil, fmt.Errorf("%q is not a skill or folder in your library", name)
 }

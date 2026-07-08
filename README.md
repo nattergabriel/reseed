@@ -44,15 +44,15 @@ reseed init ~/my-skills-library
 
 ### 2. Add skills to your library
 
-Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from GitHub with a `user/repo[/path]` reference. Use `--pack` to group related skills together.
+Write your own skills (any folder with a `SKILL.md` file) or install open source ones straight from GitHub with a `user/repo[/path]` reference. Organize your library however you like: subfolders at any depth are fine, and `--into` puts installed skills where you want them.
 
 ```bash
-reseed install pbakaus/impeccable/source/skills --pack impeccable
+reseed install pbakaus/impeccable/source/skills --into impeccable
 ```
 
 ### 3. Browse and manage your library
 
-Running `reseed` without any args opens an interactive TUI where you can browse your skills and packs, and add or remove them from the current project.
+Running `reseed` without any args opens an interactive TUI where you can browse your library, and add or remove skills from the current project.
 
 <p align="center">
   <img src=".github/screenshot.png" alt="reseed library TUI"/>
@@ -79,7 +79,7 @@ curl -sL https://raw.githubusercontent.com/nattergabriel/reseed/main/skills/rese
 All operations available in the TUI also work as standalone commands for scripting and automation:
 
 ```bash
-reseed add <skills...>  # add skills or packs to the project
+reseed add <skills...>  # add skills or whole folders to the project
 reseed remove <skills...>  # remove skills from the project
 reseed list  # list library contents
 reseed status  # show skills installed in the project
