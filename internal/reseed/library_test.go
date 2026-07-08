@@ -2,6 +2,7 @@ package reseed
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -53,14 +54,8 @@ func TestResolve(t *testing.T) {
 			for _, s := range got {
 				names = append(names, s.Name)
 			}
-			if len(names) != len(tt.want) {
-				t.Fatalf("got %v, want %v", names, tt.want)
-			}
-			for i := range names {
-				if names[i] != tt.want[i] {
-					t.Errorf("got %v, want %v", names, tt.want)
-					break
-				}
+			if !slices.Equal(names, tt.want) {
+				t.Errorf("got %v, want %v", names, tt.want)
 			}
 		})
 	}
@@ -93,9 +88,7 @@ func TestProjectAddRemoveSync(t *testing.T) {
 
 	// Syncing an installed skill whose name is ambiguous in the library errors
 	// instead of silently picking one.
-	if err := proj.Add(Skill{Name: "solo", Path: lib.Skills[0].Path}); err != nil {
-		t.Fatal(err)
-	}
+	createSkill(t, proj.SkillsDir, "solo")
 	if _, err := proj.Sync(lib); err == nil {
 		t.Error("expected ambiguity error from sync")
 	}

@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -74,13 +75,8 @@ func TestExtractSkills(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if len(got) != len(tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Fatalf("got %v, want %v", got, tt.want)
-				}
 			}
 
 			// Skills are flattened into destDir/<name>/ with their contents.
@@ -89,7 +85,7 @@ func TestExtractSkills(t *testing.T) {
 					t.Errorf("skill %s not extracted: %v", name, err)
 				}
 			}
-			if contains(tt.want, "commit") {
+			if slices.Contains(tt.want, "commit") {
 				data, err := os.ReadFile(filepath.Join(destDir, "commit", "extra.txt"))
 				if err != nil || string(data) != "extra" {
 					t.Errorf("supporting file not extracted: %v", err)
@@ -104,13 +100,4 @@ func TestExtractSkills_NoSkills(t *testing.T) {
 	if _, err := extractSkills(tarball, t.TempDir(), ""); err == nil {
 		t.Fatal("expected error for a repo containing no skills")
 	}
-}
-
-func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
