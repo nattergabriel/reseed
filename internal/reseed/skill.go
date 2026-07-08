@@ -2,9 +2,7 @@ package reseed
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,7 +48,6 @@ func listSkills(parentDir string) ([]string, error) {
 			skills = append(skills, e.Name())
 		}
 	}
-	sort.Strings(skills)
 	return skills, nil
 }
 
@@ -135,51 +132,5 @@ func CopySkill(srcDir, dstDir string) error {
 	if err := os.RemoveAll(dstDir); err != nil {
 		return fmt.Errorf("removing old directory %s: %w", dstDir, err)
 	}
-	if err := os.MkdirAll(dstDir, 0o755); err != nil {
-		return fmt.Errorf("creating directory %s: %w", dstDir, err)
-	}
-	return copyDir(srcDir, dstDir)
-}
-
-func copyDir(src, dst string) error {
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		srcPath := filepath.Join(src, e.Name())
-		dstPath := filepath.Join(dst, e.Name())
-
-		if e.IsDir() {
-			if err := os.MkdirAll(dstPath, 0o755); err != nil {
-				return err
-			}
-			if err := copyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if err := copyFile(srcPath, dstPath); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func copyFile(src, dst string) (err error) {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, in.Close()) }()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, out.Close()) }()
-
-	_, err = io.Copy(out, in)
-	return err
+	return os.CopyFS(dstDir, os.DirFS(srcDir))
 }

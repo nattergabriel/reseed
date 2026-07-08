@@ -156,4 +156,15 @@ func TestCopySkill(t *testing.T) {
 	if err != nil || string(data) != "hello" {
 		t.Error("extra file not copied correctly")
 	}
+
+	// Copying again replaces dst entirely: stale files must not survive.
+	if err := os.WriteFile(filepath.Join(dst, "stale.txt"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopySkill(filepath.Join(src, "my-skill"), dst); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "stale.txt")); !os.IsNotExist(err) {
+		t.Error("stale file should have been removed by the copy")
+	}
 }
