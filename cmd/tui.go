@@ -123,6 +123,36 @@ func (m tuiModel) skillAt(row visibleItem) (reseed.Skill, bool) {
 	return it.skill, true
 }
 
+// currentRow returns the row under the cursor; ok is false when the list is
+// empty.
+func (m tuiModel) currentRow() (visibleItem, bool) {
+	rows := m.visibleItems()
+	if len(rows) == 0 {
+		return visibleItem{}, false
+	}
+	return rows[m.cursor], true
+}
+
+// rowSkills returns the skills a row acts on: the skill itself, or every
+// member of a folder. folder is the folder name, "" for a skill row.
+func (m tuiModel) rowSkills(row visibleItem) (skills []reseed.Skill, folder string) {
+	if s, ok := m.skillAt(row); ok {
+		return []reseed.Skill{s}, ""
+	}
+	it := m.items[row.itemIdx]
+	return it.skills, it.name
+}
+
+func (m tuiModel) installedCount(skills []reseed.Skill) int {
+	var count int
+	for _, s := range skills {
+		if m.installed[s.Name] {
+			count++
+		}
+	}
+	return count
+}
+
 func (m tuiModel) Init() tea.Cmd {
 	return nil
 }
@@ -164,11 +194,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // inside an expanded folder it collapses that folder and moves the cursor to
 // the folder row. On a plain skill it does nothing.
 func (m *tuiModel) toggleFold() {
-	rows := m.visibleItems()
-	if len(rows) == 0 {
+	row, ok := m.currentRow()
+	if !ok {
 		return
 	}
-	row := rows[m.cursor]
 	it := &m.items[row.itemIdx]
 	if !it.isFolder() {
 		return
@@ -184,77 +213,51 @@ func (m *tuiModel) toggleFold() {
 	}
 }
 
+// toggleCurrent adds the skills the cursor's row acts on, or removes them
+// when every one of them is already installed.
 func (m *tuiModel) toggleCurrent() {
-	rows := m.visibleItems()
-	if len(rows) == 0 {
+	row, ok := m.currentRow()
+	if !ok {
 		return
 	}
-	row := rows[m.cursor]
-	if s, ok := m.skillAt(row); ok {
-		m.toggleSkill(s)
-	} else {
-		m.toggleFolder(row.itemIdx)
-	}
-}
+	skills, folder := m.rowSkills(row)
+	remove := m.installedCount(skills) == len(skills)
 
-func (m *tuiModel) toggleFolder(idx int) {
-	folder := m.items[idx]
-	if m.isFolderFullyInstalled(folder) {
-		for _, s := range folder.skills {
-			if err := m.proj.Remove(s.Name); err != nil {
-				m.status = fmt.Sprintf("Error removing %s: %s", s.Name, err)
-				m.statusErr = true
-				return
-			}
-			delete(m.installed, s.Name)
-		}
-		m.status = fmt.Sprintf("Removed %d %s from %s", len(folder.skills), skillNoun(len(folder.skills)), folder.name)
-		return
-	}
-
-	var added int
-	for _, s := range folder.skills {
-		if m.installed[s.Name] {
+	var affected int
+	for _, s := range skills {
+		if !remove && m.installed[s.Name] {
 			continue
 		}
-		if err := m.proj.Add(s); err != nil {
-			m.status = fmt.Sprintf("Error adding %s: %s", s.Name, err)
+		var err error
+		verb := "adding"
+		if remove {
+			verb = "removing"
+			err = m.proj.Remove(s.Name)
+		} else {
+			err = m.proj.Add(s)
+		}
+		if err != nil {
+			m.status = fmt.Sprintf("Error %s %s: %s", verb, s.Name, err)
 			m.statusErr = true
 			return
 		}
-		m.installed[s.Name] = true
-		added++
+		if remove {
+			delete(m.installed, s.Name)
+		} else {
+			m.installed[s.Name] = true
+		}
+		affected++
 	}
-	m.status = fmt.Sprintf("Added %d %s from %s", added, skillNoun(added), folder.name)
-}
 
-func (m *tuiModel) toggleSkill(s reseed.Skill) {
-	if m.installed[s.Name] {
-		if err := m.proj.Remove(s.Name); err != nil {
-			m.status = err.Error()
-			m.statusErr = true
-			return
-		}
-		delete(m.installed, s.Name)
-		m.status = fmt.Sprintf("Removed %s", s.Name)
-	} else {
-		if err := m.proj.Add(s); err != nil {
-			m.status = err.Error()
-			m.statusErr = true
-			return
-		}
-		m.installed[s.Name] = true
-		m.status = fmt.Sprintf("Added %s", s.Name)
+	verb := "Added"
+	if remove {
+		verb = "Removed"
 	}
-}
-
-func (m tuiModel) isFolderFullyInstalled(folder tuiItem) bool {
-	for _, s := range folder.skills {
-		if !m.installed[s.Name] {
-			return false
-		}
+	if folder == "" {
+		m.status = fmt.Sprintf("%s %s", verb, skills[0].Name)
+		return
 	}
-	return true
+	m.status = fmt.Sprintf("%s %d %s from %s", verb, affected, skillNoun(affected), folder)
 }
 
 func (m *tuiModel) clampOffset() {
@@ -281,18 +284,12 @@ func (m tuiModel) viewHeight() int {
 }
 
 func (m tuiModel) contextualAction() string {
-	rows := m.visibleItems()
-	if len(rows) == 0 {
+	row, ok := m.currentRow()
+	if !ok {
 		return "add"
 	}
-	row := rows[m.cursor]
-	if s, ok := m.skillAt(row); ok {
-		if m.installed[s.Name] {
-			return "remove"
-		}
-		return "add"
-	}
-	if m.isFolderFullyInstalled(m.items[row.itemIdx]) {
+	skills, _ := m.rowSkills(row)
+	if m.installedCount(skills) == len(skills) {
 		return "remove"
 	}
 	return "add"
@@ -314,12 +311,7 @@ var (
 
 func (m tuiModel) folderCountInfo(folder tuiItem) string {
 	total := len(folder.skills)
-	var count int
-	for _, s := range folder.skills {
-		if m.installed[s.Name] {
-			count++
-		}
-	}
+	count := m.installedCount(folder.skills)
 	if count == 0 {
 		return fmt.Sprintf("(%d %s)", total, skillNoun(total))
 	}
@@ -334,14 +326,8 @@ func (m tuiModel) View() string {
 	available := m.viewHeight()
 
 	lines := m.renderItems()
-	start := m.offset
-	if start > len(lines) {
-		start = len(lines)
-	}
-	end := start + available
-	if end > len(lines) {
-		end = len(lines)
-	}
+	start := min(m.offset, len(lines))
+	end := min(start+available, len(lines))
 
 	content := strings.Join(lines[start:end], "\n")
 	view := lipgloss.JoinVertical(lipgloss.Left, m.renderHeader(), "", content, "", m.renderFooter())
@@ -403,8 +389,7 @@ func (m tuiModel) renderFooter() string {
 	sep := styleFooter.Render("  ")
 	parts := []string{footerItem("esc", "quit")}
 
-	if rows := m.visibleItems(); len(rows) > 0 {
-		row := rows[m.cursor]
+	if row, ok := m.currentRow(); ok {
 		if it := m.items[row.itemIdx]; it.isFolder() {
 			hint := "expand"
 			if it.expanded {
