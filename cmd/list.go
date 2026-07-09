@@ -18,6 +18,7 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List skills in your library",
 	GroupID: groupLibrary,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := reseed.OpenLibrary()
 		if err != nil {

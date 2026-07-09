@@ -15,6 +15,7 @@ var statusCmd = &cobra.Command{
 	Use:     "status",
 	Short:   "Show skills installed in the current project",
 	GroupID: groupProject,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := reseed.OpenProject(flagDir)
 		if err != nil {
