@@ -1,12 +1,13 @@
 package reseed
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const MarkerFile = "SKILL.md"
@@ -105,26 +106,27 @@ func FindSkills(root string) ([]Skill, error) {
 // ReadDescription extracts the description field from a SKILL.md frontmatter.
 // Returns an empty string if the file has no frontmatter or no description.
 func ReadDescription(skillDir string) string {
-	f, err := os.Open(filepath.Join(skillDir, MarkerFile))
+	data, err := os.ReadFile(filepath.Join(skillDir, MarkerFile))
 	if err != nil {
 		return ""
 	}
-	defer f.Close() //nolint:errcheck // best-effort read
 
-	scanner := bufio.NewScanner(f)
-	if !scanner.Scan() || strings.TrimSpace(scanner.Text()) != "---" {
+	rest, found := strings.CutPrefix(string(data), "---\n")
+	if !found {
 		return ""
 	}
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "---" {
-			break
-		}
-		if strings.HasPrefix(line, "description:") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "description:"))
-		}
+	frontmatter, _, found := strings.Cut(rest, "\n---")
+	if !found {
+		return ""
 	}
-	return ""
+
+	var fm struct {
+		Description string `yaml:"description"`
+	}
+	if yaml.Unmarshal([]byte(frontmatter), &fm) != nil {
+		return ""
+	}
+	return strings.TrimSpace(fm.Description)
 }
 
 // CopySkill replaces dstDir with a full copy of srcDir.
