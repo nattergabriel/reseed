@@ -16,7 +16,8 @@ import (
 	"github.com/nattergabriel/reseed/internal/reseed"
 )
 
-func apiError(status int, repo string) error {
+func apiError(status int, ref SkillRef) error {
+	repo := ref.Owner + "/" + ref.Repo
 	switch status {
 	case http.StatusNotFound:
 		return fmt.Errorf("repository %s not found (or is private)", repo)
@@ -37,7 +38,7 @@ func FetchSkills(ctx context.Context, ref SkillRef, destDir string) ([]string, e
 
 	req, err := http.NewRequestWithContext(ctx, "GET", tarURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("building request for %s: %w", ref, err)
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
@@ -51,7 +52,7 @@ func FetchSkills(ctx context.Context, ref SkillRef, destDir string) ([]string, e
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiError(resp.StatusCode, fmt.Sprintf("%s/%s", ref.Owner, ref.Repo))
+		return nil, apiError(resp.StatusCode, ref)
 	}
 
 	return extractSkills(resp.Body, destDir, ref.Path)
@@ -62,7 +63,7 @@ func FetchSkills(ctx context.Context, ref SkillRef, destDir string) ([]string, e
 func extractSkills(r io.Reader, destDir, filterPath string) ([]string, error) {
 	tmp, err := os.MkdirTemp("", "reseed-*")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating temp directory: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -76,8 +77,11 @@ func extractSkills(r io.Reader, destDir, filterPath string) ([]string, error) {
 	var found []reseed.Skill
 	if filterPath != "" && reseed.IsSkill(root) {
 		found = []reseed.Skill{{Name: filepath.Base(root), Path: root}}
-	} else if found, err = reseed.FindSkills(root); err != nil {
-		return nil, err
+	} else {
+		found, err = reseed.FindSkills(root)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(found) == 0 {
 		if filterPath != "" {
@@ -89,7 +93,7 @@ func extractSkills(r io.Reader, destDir, filterPath string) ([]string, error) {
 	var names []string
 	for _, s := range found {
 		if err := reseed.CopySkill(s.Path, filepath.Join(destDir, s.Name)); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("copying skill %s: %w", s.Name, err)
 		}
 		names = append(names, s.Name)
 	}

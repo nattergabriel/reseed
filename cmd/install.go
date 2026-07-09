@@ -49,14 +49,9 @@ Examples:
 				return err
 			}
 
-			source := fmt.Sprintf("%s/%s", ref.Owner, ref.Repo)
-			if ref.Path != "" {
-				source += "/" + ref.Path
-			}
-
 			var skills []string
 			err = spinner.New().
-				Title(fmt.Sprintf("  Fetching %s...", source)).
+				Title(fmt.Sprintf("  Fetching %s...", ref)).
 				ActionWithErr(func(ctx context.Context) error {
 					var ferr error
 					skills, ferr = github.FetchSkills(ctx, ref, destDir)

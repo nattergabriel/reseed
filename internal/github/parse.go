@@ -11,6 +11,15 @@ type SkillRef struct {
 	Path  string // sub-path within repo; empty = all skills
 }
 
+// String renders the ref back as user/repo[/path].
+func (r SkillRef) String() string {
+	s := r.Owner + "/" + r.Repo
+	if r.Path != "" {
+		s += "/" + r.Path
+	}
+	return s
+}
+
 // ParseRef parses specifiers like:
 //
 //	user/repo
