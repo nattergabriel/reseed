@@ -13,7 +13,7 @@ type Config struct {
 	Dir     string `yaml:"dir,omitempty"`
 }
 
-func ConfigPath() (string, error) {
+func configPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("resolving config dir: %w", err)
@@ -24,7 +24,7 @@ func ConfigPath() (string, error) {
 // LoadConfig reads the global config. A missing file yields an empty config;
 // an unreadable or malformed file is an error.
 func LoadConfig() (*Config, error) {
-	path, err := ConfigPath()
+	path, err := configPath()
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func SaveConfig(cfg *Config) error {
-	path, err := ConfigPath()
+	path, err := configPath()
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const SkillsSubdir = "skills"
+const skillsSubdir = "skills"
 
 // Library is the source side: the user's central skill collection, walked
 // once at open time.
@@ -36,7 +36,7 @@ func InitLibrary(path string) (*Library, error) {
 		return nil, fmt.Errorf("resolving path: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(absPath, SkillsSubdir), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(absPath, skillsSubdir), 0o755); err != nil {
 		return nil, fmt.Errorf("creating skills directory: %w", err)
 	}
 
@@ -53,7 +53,7 @@ func InitLibrary(path string) (*Library, error) {
 }
 
 func openLibraryAt(path string) (*Library, error) {
-	skillsDir := filepath.Join(path, SkillsSubdir)
+	skillsDir := filepath.Join(path, skillsSubdir)
 	if _, err := os.Stat(skillsDir); err != nil {
 		return nil, fmt.Errorf("library at %s has no skills directory: run 'reseed init <path>' to fix", path)
 	}
@@ -65,7 +65,7 @@ func openLibraryAt(path string) (*Library, error) {
 }
 
 func (l *Library) SkillsDir() string {
-	return filepath.Join(l.Path, SkillsSubdir)
+	return filepath.Join(l.Path, skillsSubdir)
 }
 
 // Resolve resolves a name to skills. A name matching a library folder (by
@@ -73,27 +73,39 @@ func (l *Library) SkillsDir() string {
 // depth. Otherwise it must match a unique skill name.
 func (l *Library) Resolve(name string) ([]Skill, error) {
 	name = strings.Trim(name, "/")
-	var folder, named []Skill
+	var folder []Skill
 	for _, s := range l.Skills {
 		if s.Group == name || strings.HasPrefix(s.Group, name+"/") {
 			folder = append(folder, s)
-		}
-		if s.Name == name {
-			named = append(named, s)
 		}
 	}
 	if len(folder) > 0 {
 		return folder, nil
 	}
 
-	switch len(named) {
-	case 0:
-		return nil, fmt.Errorf("%q is not a skill or folder in your library", name)
-	case 1:
-		return named, nil
-	default:
-		return nil, ambiguousSkillError(name, named)
+	named, err := l.matchByName(name)
+	if err != nil {
+		return nil, err
 	}
+	if len(named) == 0 {
+		return nil, fmt.Errorf("%q is not a skill or folder in your library", name)
+	}
+	return named, nil
+}
+
+// matchByName returns the skills named exactly name; nil if there are none.
+// It errors when the name is ambiguous.
+func (l *Library) matchByName(name string) ([]Skill, error) {
+	var matches []Skill
+	for _, s := range l.Skills {
+		if s.Name == name {
+			matches = append(matches, s)
+		}
+	}
+	if len(matches) > 1 {
+		return nil, ambiguousSkillError(name, matches)
+	}
+	return matches, nil
 }
 
 func ambiguousSkillError(name string, matches []Skill) error {

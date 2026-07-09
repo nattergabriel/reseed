@@ -27,14 +27,11 @@ func OpenProject(override string) (Project, error) {
 	if dir == "" {
 		dir = DefaultSkillsDir
 	}
-	if !filepath.IsAbs(dir) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return Project{}, fmt.Errorf("getting working directory: %w", err)
-		}
-		dir = filepath.Join(cwd, dir)
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return Project{}, fmt.Errorf("resolving path: %w", err)
 	}
-	return Project{SkillsDir: dir}, nil
+	return Project{SkillsDir: abs}, nil
 }
 
 // Installed lists the names of skills in the project.
@@ -74,23 +71,17 @@ func (p Project) Sync(lib *Library) ([]string, error) {
 
 	var updated []string
 	for _, name := range installed {
-		var matches []Skill
-		for _, s := range lib.Skills {
-			if s.Name == name {
-				matches = append(matches, s)
-			}
+		matches, err := lib.matchByName(name)
+		if err != nil {
+			return updated, err
 		}
-		switch len(matches) {
-		case 0:
+		if len(matches) == 0 {
 			continue
-		case 1:
-			if err := CopySkill(matches[0].Path, filepath.Join(p.SkillsDir, name)); err != nil {
-				return updated, fmt.Errorf("syncing %s: %w", name, err)
-			}
-			updated = append(updated, name)
-		default:
-			return updated, ambiguousSkillError(name, matches)
 		}
+		if err := CopySkill(matches[0].Path, filepath.Join(p.SkillsDir, name)); err != nil {
+			return updated, fmt.Errorf("syncing %s: %w", name, err)
+		}
+		updated = append(updated, name)
 	}
 	return updated, nil
 }
