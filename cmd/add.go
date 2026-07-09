@@ -11,7 +11,7 @@ var addCmd = &cobra.Command{
 	Use:     "add <skills or folders...>",
 	Short:   "Add skills or folders to the current project",
 	GroupID: groupProject,
-	Long:    "Copies skills from your library into the project's .agents/skills/ directory. Naming a library folder adds every skill under it.",
+	Long:    "Copies skills from your library into the project's skills directory. Naming a library folder adds every skill under it.",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lib, err := reseed.OpenLibrary()

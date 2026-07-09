@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+
+	"github.com/nattergabriel/reseed/internal/reseed"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +15,7 @@ var flagDir string
 var rootCmd = &cobra.Command{
 	Use:   "reseed",
 	Short: "Manage agent skills across projects",
-	Long:  "reseed manages a personal skill library and lets you install skills into any project's .agents/skills/ directory.",
+	Long:  "reseed manages a personal skill library and lets you install skills into any project's skills directory.",
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
@@ -32,7 +35,8 @@ const (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&flagDir, "dir", "", "override the skills directory (default .agents/skills)")
+	rootCmd.PersistentFlags().StringVar(&flagDir, "dir", "",
+		fmt.Sprintf("override the skills directory (default %s)", reseed.DefaultSkillsDir))
 
 	rootCmd.AddGroup(
 		&cobra.Group{ID: groupLibrary, Title: "Library:"},

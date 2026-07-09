@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var installInto string
+
 func init() {
-	installCmd.Flags().String("into", "", "install skills into a library subfolder")
+	installCmd.Flags().StringVar(&installInto, "into", "", "install skills into a library subfolder")
 	rootCmd.AddCommand(installCmd)
 }
 
@@ -35,11 +37,9 @@ Examples:
 			return err
 		}
 
-		into, _ := cmd.Flags().GetString("into")
-
 		destDir := lib.SkillsDir()
-		if into != "" {
-			destDir = filepath.Join(lib.SkillsDir(), into)
+		if installInto != "" {
+			destDir = filepath.Join(destDir, installInto)
 		}
 
 		var total int
